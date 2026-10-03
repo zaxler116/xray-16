@@ -19,9 +19,15 @@ CALifeInteractionManager::CALifeInteractionManager(IPureServer *server,
     : CALifeSimulatorBase(server, section),
       CALifeCombatManager(server, section),
       CALifeCommunicationManager(server, section) {
-  m_inventory_slot_count = pSettings->r_u32("inventory", "slots");
-  m_temp_weapons.resize(m_inventory_slot_count);
-  m_temp_marks.assign(u16(-1), false);
+  // The 2003-04 ctor read pSettings->r_u32("inventory","slots"), but that
+  // key does not exist in the 2005-era gamedata (no [inventory] section),
+  // so it would fatal on startup. m_temp_weapons / m_temp_marks /
+  // m_inventory_slot_count are only used by CALifeCommunicationManager
+  // (vfPerformTrading), which is restored in Stage 4; they are left
+  // uninitialized here and will be set up when that code comes back.
+  m_inventory_slot_count = 0;
+  m_temp_weapons.resize(0);
+  m_temp_marks.assign(0, false);
 }
 
 CALifeInteractionManager::~CALifeInteractionManager() {}
