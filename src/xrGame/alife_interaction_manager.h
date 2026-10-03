@@ -8,28 +8,26 @@
 
 #pragma once
 
-#include "xrServer_Space.h"
 #include "alife_combat_manager.h"
 #include "alife_communication_manager.h"
+#include "xrServer_Space.h"
 
-class CALifeInteractionManager : public CALifeCombatManager, public CALifeCommunicationManager
-{
-    /**
-        friend class CCheckForInteractionPredicate;
-    protected:
-        u32								m_inventory_slot_count;
 
-    public:
-        xr_vector<bool>					m_temp_marks;
-        ALife::WEAPON_P_VECTOR			m_temp_weapons;
+class CALifeInteractionManager : public CALifeCombatManager,
+                                 public CALifeCommunicationManager {
+  friend class CCheckForInteractionPredicate;
 
-    **/
+protected:
+  u32 m_inventory_slot_count;
+
 public:
-    CALifeInteractionManager(IPureServer* server, LPCSTR section);
-    /**
-        virtual							~CALifeInteractionManager	();
-                void					check_for_interaction		(CSE_ALifeSchedulable		*tpALifeSchedulable);
-                void					check_for_interaction		(CSE_ALifeSchedulable		*tpALifeSchedulable,
-    GameGraph::_GRAPH_ID		tGraphID);
-    **/
+  xr_vector<bool> m_temp_marks;
+  ALife::WEAPON_P_VECTOR m_temp_weapons;
+
+public:
+  CALifeInteractionManager(IPureServer *server, LPCSTR section);
+  virtual ~CALifeInteractionManager();
+  void check_for_interaction(CSE_ALifeSchedulable *tpALifeSchedulable);
+  void check_for_interaction(CSE_ALifeSchedulable *tpALifeSchedulable,
+                             GameGraph::_GRAPH_ID tGraphID);
 };
