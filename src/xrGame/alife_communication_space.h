@@ -8,16 +8,13 @@
 
 #pragma once
 
-/**
-#include "xrServer_Objects_Alife_Items.h"
+#include "xrServer_Objects_ALife_Items.h"
 
 namespace ALifeCommunication {
-    class CRemoveAttachedItemsPredicate {
-    public:
-        IC bool			operator()	(const CSE_ALifeInventoryItem *item)
-        {
-            return		(item->attached());
-        };
-    };
-}
-**/
+class CRemoveAttachedItemsPredicate {
+public:
+  IC bool operator()(const CSE_ALifeInventoryItem *item) {
+    return (item->attached());
+  };
+};
+} // namespace ALifeCommunication
