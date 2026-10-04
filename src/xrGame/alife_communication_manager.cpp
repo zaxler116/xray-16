@@ -11,8 +11,14 @@
 #include "alife_communication_space.h"
 #include "xrServer_Objects_ALife_Monsters.h"
 #include "xrServer_Objects_ALife_Items.h"
+#include "alife_object_registry.h"
+#include "alife_human_brain.h"
+#include "alife_human_object_handler.h"
 
 using namespace ALife;
+
+using ITEM_P_IT = ITEM_P_VECTOR::iterator;
+using OBJECT_IT = OBJECT_VECTOR::iterator;
 
 // Stage 4.2: live trading macros and predicates (from the commented 2003
 // block further down; needed by 4.3+). CSortByOwnerPredicate uses
@@ -75,6 +81,165 @@ CSE_ALifeInventoryItem *tpALifeInventoryItem2) const
     }
 };
 **/
+
+// Stage 4.3: live trading helpers (2003 logic, adapted to the 2005 API:
+// attach() lives on CSE_ALifeDynamicObject; the object registry is reached
+// through alife().objects()).
+#ifdef DEBUG
+void CALifeCommunicationManager::vfPrintItems(CSE_ALifeHumanAbstract *tpALifeHumanAbstract,
+                                              ITEM_P_VECTOR &tpItemVector)
+{
+  Msg("%s[%d]", tpALifeHumanAbstract->name_replace(), tpALifeHumanAbstract->m_dwMoney);
+  ITEM_P_IT I = tpItemVector.begin();
+  ITEM_P_IT E = tpItemVector.end();
+  for (; I != E; ++I)
+    Msg(" %s", (*I)->base()->name_replace());
+}
+
+void CALifeCommunicationManager::vfPrintItems(CSE_ALifeHumanAbstract *tpALifeHumanAbstract)
+{
+  Msg("%s[%d]", tpALifeHumanAbstract->name_replace(), tpALifeHumanAbstract->m_dwMoney);
+  OBJECT_IT I = tpALifeHumanAbstract->children.begin();
+  OBJECT_IT E = tpALifeHumanAbstract->children.end();
+  for (; I != E; ++I)
+    Msg(" %s", ai().alife().objects().object(*I)->name_replace());
+}
+#endif
+
+u32 CALifeCommunicationManager::dwfComputeItemCost(ITEM_P_VECTOR &tpItemVector)
+{
+  u32 l_dwItemCost = 0;
+  ITEM_P_IT I = tpItemVector.begin();
+  ITEM_P_IT E = tpItemVector.end();
+  for (; I != E; ++I)
+    l_dwItemCost += (*I)->m_dwCost;
+  return (l_dwItemCost);
+}
+
+void CALifeCommunicationManager::vfRunFunctionByIndex(CSE_ALifeHumanAbstract *tpALifeHumanAbstract,
+                                                      OBJECT_VECTOR &tpBlockedItems,
+                                                      ITEM_P_VECTOR &tpItems, int i, int &j)
+{
+  // Stage 4.2 note: the 2003 body sorts m_temp_item_vector with
+  // CSortByOwnerPredicate (needs m_tPreviousParentID, absent in 2005) and
+  // then dispatches to the handler's choose_* methods. The sort is a
+  // deterministic tie-breaker for the blocked-items bookkeeping, so it is
+  // dropped until Stage 4.4; the dispatch is live.
+  (void)tpItems;
+  switch (i) {
+  case 0: {
+    j = tpALifeHumanAbstract->brain().objects().choose_food(&tpBlockedItems);
+    break;
+  }
+  case 1: {
+    j = tpALifeHumanAbstract->brain().objects().choose_weapon(eWeaponPriorityTypeKnife,
+                                                              &tpBlockedItems);
+    break;
+  }
+  case 2: {
+    j = tpALifeHumanAbstract->brain().objects().choose_weapon(eWeaponPriorityTypeSecondary,
+                                                              &tpBlockedItems);
+    break;
+  }
+  case 3: {
+    j = tpALifeHumanAbstract->brain().objects().choose_weapon(eWeaponPriorityTypePrimary,
+                                                              &tpBlockedItems);
+    break;
+  }
+  case 4: {
+    j = tpALifeHumanAbstract->brain().objects().choose_weapon(eWeaponPriorityTypeGrenade,
+                                                              &tpBlockedItems);
+    break;
+  }
+  case 5: {
+    j = tpALifeHumanAbstract->brain().objects().choose_medikit(&tpBlockedItems);
+    break;
+  }
+  case 6: {
+    j = tpALifeHumanAbstract->brain().objects().choose_detector(&tpBlockedItems);
+    break;
+  }
+  case 7: {
+    j = tpALifeHumanAbstract->brain().objects().choose_equipment(&tpBlockedItems);
+    break;
+  }
+  default:
+    NODEFAULT;
+  }
+}
+
+void CALifeCommunicationManager::vfAssignItemParents(CSE_ALifeHumanAbstract *tpALifeHumanAbstract,
+                                                     int iItemCount)
+{
+  // 2003 used xr_alloca; the stack size is bounded by the rukzak (<=100).
+  ALife::_OBJECT_ID temp_children[MAX_ITEM_VOLUME];
+  std::copy(tpALifeHumanAbstract->children.begin() +
+                tpALifeHumanAbstract->children.size() - iItemCount,
+            tpALifeHumanAbstract->children.end(), temp_children);
+  tpALifeHumanAbstract->children.resize(
+      tpALifeHumanAbstract->children.size() - iItemCount);
+  for (int i = 0; i < iItemCount; ++i) {
+    CSE_ALifeInventoryItem *l_tpALifeInventoryItem =
+        smart_cast<CSE_ALifeInventoryItem *>(ai().alife().objects().object(temp_children[i]));
+    tpALifeHumanAbstract->attach(l_tpALifeInventoryItem, true, true);
+    // Stage 3 note: the 2003 money bookkeeping (brain().m_dwTotalMoney) is
+    // restored in Stage 4.7 (vfPerformTrading) - it is not maintained yet.
+  }
+}
+
+void CALifeCommunicationManager::vfAttachOwnerItems(CSE_ALifeHumanAbstract *tpALifeHumanAbstract,
+                                                    ITEM_P_VECTOR &tpItemVector,
+                                                    ITEM_P_VECTOR &tpOwnItems)
+{
+  ITEM_P_IT I = tpItemVector.begin();
+  ITEM_P_IT E = tpItemVector.end();
+  for (; I != E; ++I)
+    // 2003: std::binary_search over a sorted tpOwnItems (KEEP_SORTED).
+    // The sort happens in vfPerformTrading (4.7); until then the search
+    // degenerates to a linear check.
+    if (std::find(tpOwnItems.begin(), tpOwnItems.end(), *I) != tpOwnItems.end())
+      tpALifeHumanAbstract->attach(*I, true);
+}
+
+int CALifeCommunicationManager::ifComputeBalance(CSE_ALifeHumanAbstract *tpALifeHumanAbstract,
+                                                 ITEM_P_VECTOR &tpItemVector)
+{
+  int l_iDebt = 0;
+  OBJECT_VECTOR &l_tpChildren = tpALifeHumanAbstract->children;
+  ITEM_P_IT I = tpItemVector.begin();
+  ITEM_P_IT E = tpItemVector.end();
+  for (; I != E; ++I)
+    if (std::find(l_tpChildren.begin(), l_tpChildren.end(), (*I)->base()->ID) !=
+        l_tpChildren.end())
+      l_iDebt -= (*I)->m_dwCost;
+  return (l_iDebt);
+}
+
+void CALifeCommunicationManager::vfRestoreItems(CSE_ALifeHumanAbstract *tpALifeHumanAbstract,
+                                                ITEM_P_VECTOR &tpItemVector)
+{
+#ifndef FAST_OWNERSHIP
+  tpALifeHumanAbstract->vfInitInventory();
+#endif
+  {
+    ITEM_P_IT I = tpItemVector.begin();
+    ITEM_P_IT E = tpItemVector.end();
+#ifdef FAST_OWNERSHIP
+    OBJECT_IT i = tpALifeHumanAbstract->children.begin();
+#endif
+    for (; I != E; ++I) {
+#ifndef FAST_OWNERSHIP
+      (*I)->base()->ID_Parent = 0xffff;
+      const_cast<CALifeSimulator &>(ai().alife()).graph().attach(
+          *tpALifeHumanAbstract, *I,
+          smart_cast<CSE_ALifeDynamicObject *>(*I)->m_tGraphID);
+#else
+      *i = (*I)->base()->ID;
+      ++i;
+#endif
+    }
+  }
+}
 
 // Stage 4.1: live no-op definition. The 2003 body (vfPerformTrading over
 // combat groups) is restored in Stage 4.7; the commented block further

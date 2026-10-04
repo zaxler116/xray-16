@@ -121,6 +121,23 @@ public:
     CALifeCommunicationManager(IPureServer* server, LPCSTR section);
     // Stage 4.1: live method (no-op until 4.7 restores vfPerformTrading)
     void vfPerformCommunication();
+    // Stage 4.3: live trading helpers (2003 logic, adapted to the 2005 API)
+    u32 dwfComputeItemCost(ALife::ITEM_P_VECTOR& tpItemVector);
+    void vfRunFunctionByIndex(CSE_ALifeHumanAbstract* tpALifeHumanAbstract,
+        ALife::OBJECT_VECTOR& tpBlockedItems, ALife::ITEM_P_VECTOR& tpItems,
+        int i, int& j);
+    void vfAssignItemParents(CSE_ALifeHumanAbstract* tpALifeHumanAbstract, int iItemCount);
+    void vfAttachOwnerItems(CSE_ALifeHumanAbstract* tpALifeHumanAbstract,
+        ALife::ITEM_P_VECTOR& tpItemVector, ALife::ITEM_P_VECTOR& tpOwnItems);
+    int ifComputeBalance(CSE_ALifeHumanAbstract* tpALifeHumanAbstract,
+        ALife::ITEM_P_VECTOR& tpItemVector);
+    void vfRestoreItems(CSE_ALifeHumanAbstract* tpALifeHumanAbstract,
+        ALife::ITEM_P_VECTOR& tpItemVector);
+#ifdef DEBUG
+    void vfPrintItems(CSE_ALifeHumanAbstract* tpALifeHumanAbstract,
+        ALife::ITEM_P_VECTOR& tpItemVector);
+    void vfPrintItems(CSE_ALifeHumanAbstract* tpALifeHumanAbstract);
+#endif
     /**
         virtual				~CALifeCommunicationManager		();
                 void		communicate_with_customer		(CSE_ALifeHumanAbstract		*tpALifeHumanAbstract,
