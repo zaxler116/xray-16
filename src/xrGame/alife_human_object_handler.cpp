@@ -590,4 +590,53 @@ CSE_ALifeItemWeapon *CALifeHumanObjectHandler::best_weapon() {
   return (object.m_tpCurrentBestWeapon);
 }
 
-void CALifeHumanObjectHandler::attach_items() {}
+// 2003: most expensive items first (save L5-10).
+struct CSortItemPredicate {
+  IC bool operator()(const CSE_ALifeInventoryItem *tpALifeInventoryItem1,
+                     const CSE_ALifeInventoryItem *tpALifeInventoryItem2) const {
+    return (float(tpALifeInventoryItem1->m_dwCost) > float(tpALifeInventoryItem2->m_dwCost));
+  };
+};
+
+// Stage 3.5: 2003 CSE_ALifeHumanAbstract::vfAttachItems (save L616-649):
+// groups delegate to choose_group, a fast pass grabs everything at once,
+// otherwise the item list is sorted by cost and the choose_* methods are
+// called in the 2003 order. eTakeTypeAll additionally detaches the current
+// inventory first (swap semantics).
+void CALifeHumanObjectHandler::attach_items()
+{
+  object_type& object = *m_object;
+  ALife::ETakeType tTakeType = ALife::eTakeTypeAll;
+  R_ASSERT2(object.get_health() >= EPS_L, "Cannot attach items to dead human");
+
+  CSE_ALifeGroupAbstract* l_tpALifeGroupAbstract =
+      smart_cast<CSE_ALifeGroupAbstract*>(&object);
+  if (l_tpALifeGroupAbstract) {
+    choose_group(l_tpALifeGroupAbstract);
+    return;
+  } else
+    if (choose_fast())
+      return;
+
+  if (ALife::eTakeTypeAll == tTakeType) {
+    detach_all(false);
+  }
+
+  ALife::ITEM_P_VECTOR& items =
+      const_cast<ALife::ITEM_P_VECTOR&>(ai().alife().m_temp_item_vector);
+  std::sort(items.begin(), items.end(), CSortItemPredicate());
+
+  if ((ALife::eTakeTypeAll == tTakeType) || (ALife::eTakeTypeMin == tTakeType)) {
+    choose_food();
+    choose_weapon(ALife::eWeaponPriorityTypeKnife);
+    choose_weapon(ALife::eWeaponPriorityTypeSecondary);
+    choose_weapon(ALife::eWeaponPriorityTypePrimary);
+    choose_weapon(ALife::eWeaponPriorityTypeGrenade);
+    choose_medikit();
+    choose_detector();
+    choose_equipment();
+  }
+
+  if ((ALife::eTakeTypeAll == tTakeType) || (ALife::eTakeTypeRest == tTakeType))
+    choose_valuables();
+}
