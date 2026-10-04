@@ -11,6 +11,9 @@
 #include "alife_object_registry.h"
 #include "xrServer_Objects_ALife_Monsters.h"
 
+// Stage 2.2: needed by best_detector() to reach member->brain().objects()
+#include "alife_human_brain.h"
+
 // Stage 2.1: count the ammo of the given weapon section the object carries
 // (2003 CSE_ALifeHumanAbstract::get_available_ammo_count, save L171-185).
 // No ammo section -> unlimited (-1); weapons without ammo (slot 0/3) rely
@@ -44,7 +47,59 @@ void CALifeHumanObjectHandler::attach_available_ammo(
 }
 
 bool CALifeHumanObjectHandler::can_take_item(CSE_ALifeInventoryItem* inventory_item) { return (false); }
-void CALifeHumanObjectHandler::collect_ammo_boxes() {}
+// Stage 2.2: merge ammo boxes of the same section (2003 vfCollectAmmoBoxes,
+// save L79-134). Local marks vector instead of alife().m_temp_marks (Stage 4).
+void CALifeHumanObjectHandler::collect_ammo_boxes()
+{
+    object_type& object = *m_object;
+    int n = (int)object.children.size();
+    xr_vector<bool> marks(n, false);
+
+    for (int i = 0; i < n; ++i) {
+        if (marks[i]) continue;
+        marks[i] = true;
+
+        CSE_ALifeItemAmmo* box = smart_cast<CSE_ALifeItemAmmo*>(
+            ai().alife().objects().object(object.children[i]));
+        if (!box) continue;
+
+        for (int j = i + 1; j < n; ++j) {
+            if (marks[j]) continue;
+
+            CSE_ALifeItemAmmo* box1 = smart_cast<CSE_ALifeItemAmmo*>(
+                ai().alife().objects().object(object.children[j]));
+            if (!box1) {
+                marks[j] = true;
+                continue;
+            }
+
+            if (!strstr(box->s_name.c_str(), box1->s_name.c_str()))
+                continue;
+
+            marks[j] = true;
+
+            if (box->a_elapsed + box1->a_elapsed > box->m_boxSize) {
+                box1->a_elapsed = box->a_elapsed + box1->a_elapsed - box->m_boxSize;
+                box->a_elapsed = box->m_boxSize;
+                box = box1;
+            }
+            else {
+                box->a_elapsed = box->a_elapsed + box1->a_elapsed;
+                box1->a_elapsed = 0;
+            }
+        }
+    }
+
+    for (int i = 0, j = 0; i < n; ++i, ++j) {
+        marks[j] = false;
+        CSE_ALifeItemAmmo* box = smart_cast<CSE_ALifeItemAmmo*>(
+            ai().alife().objects().object(object.children[i]));
+        if (!box || box->a_elapsed) continue;
+        const_cast<CALifeSimulator&>(ai().alife()).release(box, true);
+        --i;
+        --n;
+    }
+}
 int CALifeHumanObjectHandler::choose_equipment(ALife::OBJECT_VECTOR* objects) { return (-1); }
 int CALifeHumanObjectHandler::choose_weapon(
     const ALife::EWeaponPriorityType& weapon_priority_type, ALife::OBJECT_VECTOR* objects)
@@ -59,9 +114,80 @@ int CALifeHumanObjectHandler::choose_valuables() { return (-1); }
 bool CALifeHumanObjectHandler::choose_fast() { return (false); }
 void CALifeHumanObjectHandler::choose_group(CSE_ALifeGroupAbstract* group_abstract) {}
 void CALifeHumanObjectHandler::detach_all(bool fictitious) {}
-void CALifeHumanObjectHandler::update_weapon_ammo() {}
+// Stage 2.2: after combat, trim the ammo of the current best weapon (2003
+// vfUpdateWeaponAmmo, save L136-169). Slot 0/3 (no external ammo) kept.
+void CALifeHumanObjectHandler::update_weapon_ammo()
+{
+    object_type& object = *m_object;
+    CSE_ALifeItemWeapon* wpn = object.m_tpCurrentBestWeapon;
+    if (!wpn) return;
+
+    switch (wpn->get_slot()) {
+    case 0 :
+    case 3 :
+        break;
+    default : {
+        int n = (int)object.children.size();
+        for (int i = 0; i < n; ++i) {
+            CSE_ALifeItemAmmo* ammo = smart_cast<CSE_ALifeItemAmmo*>(
+                ai().alife().objects().object(object.children[i]));
+            if (ammo && strstr(wpn->m_caAmmoSections, ammo->s_name.c_str())) {
+                if (wpn->m_dwAmmoAvailable > ammo->a_elapsed) {
+                    wpn->m_dwAmmoAvailable -= ammo->a_elapsed;
+                    continue;
+                }
+                if (wpn->m_dwAmmoAvailable) {
+                    ammo->a_elapsed = (u16)wpn->m_dwAmmoAvailable;
+                    wpn->m_dwAmmoAvailable = 0;
+                    continue;
+                }
+                const_cast<CALifeSimulator&>(ai().alife()).release(ammo, true);
+                --i;
+                --n;
+            }
+        }
+        object.m_tpCurrentBestWeapon = 0;
+        break;
+    }
+    }
+    collect_ammo_boxes();
+}
 void CALifeHumanObjectHandler::process_items() {}
-CSE_ALifeDynamicObject* CALifeHumanObjectHandler::best_detector() { return (0); }
+// Stage 2.2: choose the best detector (2003 tpfGetBestDetector, save
+// L281-325). 2005: detectors are CSE_ALifeItemDetector, no VISUAL clsid.
+CSE_ALifeDynamicObject* CALifeHumanObjectHandler::best_detector()
+{
+    object_type& object = *m_object;
+    object.m_tpBestDetector = 0;
+
+    CSE_ALifeGroupAbstract* group =
+        smart_cast<CSE_ALifeGroupAbstract*>(&object);
+    if (group) {
+        u32 l_dwBestValue = 0;
+        if (!group->m_wCount) return (0);
+        for (u32 i = 0, n = group->m_tpMembers.size(); i < n; ++i) {
+            CSE_ALifeHumanAbstract* member = smart_cast<CSE_ALifeHumanAbstract*>(
+                ai().alife().objects().object(group->m_tpMembers[i]));
+            if (!member) continue;
+            CSE_ALifeDynamicObject* det =
+                member->brain().objects().best_detector();
+            u32 value = det ? det->ef_detector_type() : 0;
+            if (value > l_dwBestValue) {
+                l_dwBestValue = value;
+                object.m_tpBestDetector = det;
+            }
+        }
+        return (object.m_tpBestDetector);
+    }
+
+    for (u32 i = 0, n = object.children.size(); i < n; ++i) {
+        CSE_ALifeDynamicObject* obj =
+            ai().alife().objects().object(object.children[i]);
+        if (!smart_cast<CSE_ALifeItemDetector*>(obj)) continue;
+        object.m_tpBestDetector = obj;
+    }
+    return (object.m_tpBestDetector);
+}
 
 // Stage 2.1: choose the best weapon the object carries (2003
 // CSE_ALifeHumanAbstract::tpfGetBestWeapon, save L47-77). A weapon is a
