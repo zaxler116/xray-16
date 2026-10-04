@@ -53,6 +53,8 @@ public:
     bool choose_fast();
     void choose_group(CSE_ALifeGroupAbstract* group_abstract);
     void attach_items();
+    // Stage 3.6: Min/Rest pick-up order, shared by attach_items() and choose_group()
+    void attach_items_pick(ALife::ETakeType tTakeType);
 };
 
 #include "alife_human_object_handler_inline.h"

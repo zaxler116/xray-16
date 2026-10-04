@@ -448,8 +448,29 @@ bool CALifeHumanObjectHandler::choose_fast()
 
   return (false);
 }
-void CALifeHumanObjectHandler::choose_group(
-    CSE_ALifeGroupAbstract *group_abstract) {}
+// Stage 3.6: 2003 CSE_ALifeHumanAbstract::vfChooseGroup (save L64-87):
+// every group member first takes the minimum set (Min), then the
+// rest of the items (Rest), one by one.
+void CALifeHumanObjectHandler::choose_group(CSE_ALifeGroupAbstract* group_abstract)
+{
+  ALife::OBJECT_IT I = group_abstract->m_tpMembers.begin();
+  ALife::OBJECT_IT E = group_abstract->m_tpMembers.end();
+  for (; I != E; ++I) {
+    CSE_ALifeHumanAbstract* l_tpALifeHumanAbstract =
+        smart_cast<CSE_ALifeHumanAbstract*>(ai().alife().objects().object(*I));
+    R_ASSERT2(l_tpALifeHumanAbstract, "Invalid group member");
+    l_tpALifeHumanAbstract->brain().objects().attach_items_pick(ALife::eTakeTypeMin);
+  }
+
+  I = group_abstract->m_tpMembers.begin();
+  E = group_abstract->m_tpMembers.end();
+  for (; I != E; ++I) {
+    CSE_ALifeHumanAbstract* l_tpALifeHumanAbstract =
+        smart_cast<CSE_ALifeHumanAbstract*>(ai().alife().objects().object(*I));
+    R_ASSERT2(l_tpALifeHumanAbstract, "Invalid group member");
+    l_tpALifeHumanAbstract->brain().objects().attach_items_pick(ALife::eTakeTypeRest);
+  }
+}
 void CALifeHumanObjectHandler::detach_all(bool fictitious) {}
 // Stage 2.2: after combat, trim the ammo of the current best weapon (2003
 // vfUpdateWeaponAmmo, save L136-169). Slot 0/3 (no external ammo) kept.
@@ -598,6 +619,32 @@ struct CSortItemPredicate {
   };
 };
 
+// Stage 3.6: static Min/Rest variant of the 2003 vfAttachItems pick-up
+// order (save L636-648). Min = food/weapons/medikit/detector/equipment;
+// Rest = valuables. Used by choose_group() to let group members take
+// items one by one.
+void CALifeHumanObjectHandler::attach_items_pick(ALife::ETakeType tTakeType)
+{
+  ALife::ITEM_P_VECTOR& items =
+      const_cast<ALife::ITEM_P_VECTOR&>(ai().alife().m_temp_item_vector);
+  std::sort(items.begin(), items.end(), CSortItemPredicate());
+
+  if ((ALife::eTakeTypeAll == tTakeType) || (ALife::eTakeTypeMin == tTakeType)) {
+    choose_food();
+    choose_weapon(ALife::eWeaponPriorityTypeKnife);
+    choose_weapon(ALife::eWeaponPriorityTypeSecondary);
+    choose_weapon(ALife::eWeaponPriorityTypePrimary);
+    choose_weapon(ALife::eWeaponPriorityTypeGrenade);
+    choose_medikit();
+    choose_detector();
+    choose_equipment();
+  }
+
+  if ((ALife::eTakeTypeAll == tTakeType) || (ALife::eTakeTypeRest == tTakeType))
+    choose_valuables();
+}
+
+
 // Stage 3.5: 2003 CSE_ALifeHumanAbstract::vfAttachItems (save L616-649):
 // groups delegate to choose_group, a fast pass grabs everything at once,
 // otherwise the item list is sorted by cost and the choose_* methods are
@@ -622,21 +669,5 @@ void CALifeHumanObjectHandler::attach_items()
     detach_all(false);
   }
 
-  ALife::ITEM_P_VECTOR& items =
-      const_cast<ALife::ITEM_P_VECTOR&>(ai().alife().m_temp_item_vector);
-  std::sort(items.begin(), items.end(), CSortItemPredicate());
-
-  if ((ALife::eTakeTypeAll == tTakeType) || (ALife::eTakeTypeMin == tTakeType)) {
-    choose_food();
-    choose_weapon(ALife::eWeaponPriorityTypeKnife);
-    choose_weapon(ALife::eWeaponPriorityTypeSecondary);
-    choose_weapon(ALife::eWeaponPriorityTypePrimary);
-    choose_weapon(ALife::eWeaponPriorityTypeGrenade);
-    choose_medikit();
-    choose_detector();
-    choose_equipment();
-  }
-
-  if ((ALife::eTakeTypeAll == tTakeType) || (ALife::eTakeTypeRest == tTakeType))
-    choose_valuables();
+  attach_items_pick(tTakeType);
 }
