@@ -23,8 +23,8 @@ CALifeInteractionManager::CALifeInteractionManager(IPureServer *server,
   // key does not exist in the 2005-era gamedata (no [inventory] section),
   // so it would fatal on startup. m_temp_weapons / m_temp_marks /
   // m_inventory_slot_count are only used by CALifeCommunicationManager
-  // (vfPerformTrading), which is restored in Stage 4; they are left
-  // uninitialized here and will be set up when that code comes back.
+  // (vfPerformTrading) and are filled on demand in vfPerformCommunication
+  // (Stage 4); they start empty.
   m_inventory_slot_count = 0;
   m_temp_weapons.resize(0);
   m_temp_marks.assign(0, false);
@@ -49,7 +49,11 @@ void CALifeInteractionManager::check_for_interaction(
     check_for_interaction(tpALifeSchedulable, (*I).vertex_id());
 }
 
+class CCheckForInteractionPredicate;
+
 class CCheckForInteractionPredicate {
+  friend class CALifeInteractionManager;
+
 public:
   CALifeInteractionManager *manager;
   mutable CSE_ALifeSchedulable *tpALifeSchedulable;
@@ -200,11 +204,6 @@ public:
       break;
     }
     case eMeetActionTypeInteract: {
-      // Stage 4 (human communication): this case will call
-      // manager->vfPerformCommunication() once CALifeCommunicationManager
-      // is restored. Until then human meetings are no-ops (the human
-      // brain stubs return eMeetActionTypeIgnore, so this case is not
-      // reached in practice).
       R_ASSERT2(l_tpALifeHumanAbstract,
                 "Non-human objects cannot communicate with each other");
       CSE_ALifeHumanAbstract *l_tpALifeHumanAbstract2 =
@@ -220,6 +219,9 @@ public:
                 ->name_replace());
       }
 #endif
+      // Stage 4.1: call added; CALifeCommunicationManager::vfPerformCommunication()
+      // is a no-op stub until Stage 4.7 restores vfPerformTrading.
+      static_cast<CALifeCommunicationManager&>(*manager).vfPerformCommunication();
       break;
     }
     case eMeetActionTypeIgnore: {

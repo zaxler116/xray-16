@@ -101,6 +101,8 @@ class CALifeCommunicationManager : public virtual CALifeSimulatorBase
     **/
 public:
     CALifeCommunicationManager(IPureServer* server, LPCSTR section);
+    // Stage 4.1: live method (no-op until 4.7 restores vfPerformTrading)
+    void vfPerformCommunication();
     /**
         virtual				~CALifeCommunicationManager		();
                 void		communicate_with_customer		(CSE_ALifeHumanAbstract		*tpALifeHumanAbstract,

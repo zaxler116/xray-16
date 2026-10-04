@@ -10,6 +10,18 @@
 #include "StdAfx.h"
 #include "alife_communication_space.h"
 
+// Stage 4.1: live no-op definition. The 2003 body (vfPerformTrading over
+// combat groups) is restored in Stage 4.7; the commented block further
+// down in this file is reference-only.
+void CALifeCommunicationManager::vfPerformCommunication()
+{
+#ifdef DEBUG
+    if (psAI_Flags.test(aiALife))
+        Msg("[LSS] ALife communication (no-op until Stage 4.7)");
+#endif
+}
+
+
 /**
 #include "xrServer_objects_ALife_All.h"
 #include "alife_object_registry.h"
@@ -901,20 +913,7 @@ l_iItemCount2,ifComputeBalance(tpALifeHumanAbstract1,m_tpItems2)
     tpALifeHumanAbstract2->brain().m_dwTotalMoney = u32(-1);
 }
 
-void CALifeCommunicationManager::vfPerformCommunication()
-{
-    SCHEDULE_P_IT		I = m_tpaCombatGroups[0].begin();
-    SCHEDULE_P_IT		E = m_tpaCombatGroups[0].end();
-    for ( ; I != E; ++I) {
-        SCHEDULE_P_IT	i = m_tpaCombatGroups[1].begin();
-        SCHEDULE_P_IT	e = m_tpaCombatGroups[1].end();
-        for ( ; i != e; ++i) {
-            if (!(*I)->base()->children.empty() ||
-!(*i)->base()->children.empty())
-                vfPerformTrading(smart_cast<CSE_ALifeHumanAbstract*>(*I),smart_cast<CSE_ALifeHumanAbstract*>(*i));
-        }
-    }
-}
+
 
 void
 CALifeCommunicationManager::communicate_with_customer(CSE_ALifeHumanAbstract
