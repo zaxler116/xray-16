@@ -222,7 +222,38 @@ void CALifeHumanObjectHandler::update_weapon_ammo() {
   }
   collect_ammo_boxes();
 }
-void CALifeHumanObjectHandler::process_items() {}
+// Stage 3.2: 2003 CSE_ALifeHumanAbstract::vfProcessItems (save
+// L234-262): scan the items lying on the current graph point, keep
+// the useful offline ones (detection probability fixed at 1.0f - the
+// 2003 m_detect_probability field has no 2005 counterpart), then
+// attach the collected items via attach_items().
+void CALifeHumanObjectHandler::process_items()
+{
+  ALife::ITEM_P_VECTOR& items = const_cast<ALife::ITEM_P_VECTOR&>(ai().alife().m_temp_item_vector);
+  items.clear();
+
+  const CALifeSimulator& sim = ai().alife();
+  const CSE_ALifeDynamicObject* self = m_object;
+  const GameGraph::_GRAPH_ID gid = self->m_tGraphID;
+
+  const CALifeGraphRegistry::OBJECT_REGISTRY& reg =
+      const_cast<CALifeGraphRegistry::GRAPH_REGISTRY&>(
+          ai().alife().graph().objects())[gid]
+          .objects();
+  for (auto& pair : reg.objects()) {
+    CSE_ALifeInventoryItem* item =
+        smart_cast<CSE_ALifeInventoryItem*>(pair.second);
+    if (!item || !item->bfUseful() || pair.second->m_bOnline)
+      continue;
+
+    // 2003 m_detect_probability is absent in 2005: detection is
+    // always successful (probability 1.0f).
+    items.push_back(item);
+  }
+
+  if (!items.empty())
+    attach_items();
+}
 // Stage 2.2: choose the best detector (2003 tpfGetBestDetector, save
 // L281-325). 2005: detectors are CSE_ALifeItemDetector, no VISUAL clsid.
 CSE_ALifeDynamicObject *CALifeHumanObjectHandler::best_detector() {

@@ -16,6 +16,13 @@
 
 class CALifeSimulator : public CALifeUpdateManager, public CALifeInteractionManager
 {
+    // Stage 3.2: 2003 CALifeSimulator::m_temp_item_vector - the list of
+    // items detected on the current graph point, filled by
+    // CALifeHumanObjectHandler::process_items() and consumed by
+    // choose_fast()/choose_*().
+public:
+    ALife::ITEM_P_VECTOR m_temp_item_vector;
+
 protected:
     virtual void setup_simulator(CSE_ALifeObject* object);
     virtual void reload(LPCSTR section);
