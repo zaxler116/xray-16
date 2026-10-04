@@ -17,7 +17,6 @@
 #include "xrServer_Objects_ALife.h"
 #include "xrServer_Objects_ALife_Items.h"
 
-
 class CALifeMonsterBrain;
 class CALifeHumanBrain;
 class CALifeOnlineOfflineGroupBrain;
@@ -31,8 +30,8 @@ public:
     eTraderFlagInfiniteAmmo = u32(1) << 0,
     eTraderFlagDummy = u32(-1),
   };
-  //  float                           m_fCumulativeItemMass;
-  //  int                             m_iCumulativeItemVolume;
+  float m_fCumulativeItemMass;
+  int m_iCumulativeItemVolume;
   u32 m_dwMoney;
   float m_fMaxItemMass;
   Flags32 m_trader_flags;
