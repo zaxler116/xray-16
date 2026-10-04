@@ -395,6 +395,354 @@ void CALifeCommunicationManager::vfPerformCommunication()
         Msg("[LSS] ALife communication (no-op until Stage 4.7)");
 #endif
 }
+// Stage 4.6: live trade checks (2003 logic, adapted to the 2005 API).
+// 2003 called brain().objects().can_take_item(0) (int overload, capacity
+// check without a concrete item); the 2005 handler only has
+// can_take_item(CSE_ALifeInventoryItem*), so we pass nullptr, which the
+// handler treats as "no extra item" and just checks mass against
+// m_fCumulativeItemMass + m_fMaxItemMass.
+bool CALifeCommunicationManager::bfCheckForInventoryCapacity(
+    CSE_ALifeHumanAbstract *tpALifeHumanAbstract1, ITEM_P_VECTOR &tpTrader1,
+    INT_VECTOR &tpIndexes1, CSE_ALifeHumanAbstract *tpALifeHumanAbstract2,
+    ITEM_P_VECTOR &tpTrader2, INT_VECTOR &tpIndexes2)
+{
+    {
+        INT_IT I = tpIndexes2.begin();
+        INT_IT E = tpIndexes2.end();
+        for (; I != E; ++I)
+        {
+            tpALifeHumanAbstract1->children.push_back(
+                tpTrader2[*I]->base()->ID);
+            tpALifeHumanAbstract2->children.erase(std::find(
+                tpALifeHumanAbstract2->children.begin(),
+                tpALifeHumanAbstract2->children.end(),
+                tpTrader2[*I]->base()->ID));
+        }
+    }
+    {
+        INT_IT I = tpIndexes1.begin();
+        INT_IT E = tpIndexes1.end();
+        for (; I != E; ++I)
+        {
+            tpALifeHumanAbstract2->children.push_back(
+                tpTrader1[*I]->base()->ID);
+            tpALifeHumanAbstract1->children.erase(std::find(
+                tpALifeHumanAbstract1->children.begin(),
+                tpALifeHumanAbstract1->children.end(),
+                tpTrader1[*I]->base()->ID));
+        }
+    }
+
+    bool l_bResult =
+        tpALifeHumanAbstract1->brain().objects().can_take_item(0) &&
+        tpALifeHumanAbstract2->brain().objects().can_take_item(0);
+
+    if (!l_bResult)
+    {
+        {
+            INT_IT I = tpIndexes1.begin();
+            INT_IT E = tpIndexes1.end();
+            for (; I != E; ++I)
+                tpALifeHumanAbstract1->children.push_back(
+                    tpTrader1[*I]->base()->ID);
+        }
+        {
+            INT_IT I = tpIndexes2.begin();
+            INT_IT E = tpIndexes2.end();
+            for (; I != E; ++I)
+                tpALifeHumanAbstract2->children.push_back(
+                    tpTrader2[*I]->base()->ID);
+        }
+        return (false);
+    }
+    else
+        return (true);
+}
+
+bool CALifeCommunicationManager::bfCheckForInventoryCapacity(
+    CSE_ALifeHumanAbstract *tpALifeHumanAbstract1, ITEM_P_VECTOR &tpTrader1,
+    int iSum1, int iMoney1, CSE_ALifeHumanAbstract *tpALifeHumanAbstract2,
+    ITEM_P_VECTOR &tpTrader2, int iSum2, int iMoney2, int iBalance)
+{
+    INT_VECTOR l_tpIndexes1, l_tpIndexes2;
+    int l_iStartI1 = 0, l_iStackPointer1 = 0, l_iStartI2 = 0,
+        l_iStackPointer2 = 0;
+    for (;;)
+    {
+        l_tpIndexes1.clear();
+
+        if (iSum1)
+            if (!bfGetItemIndexes(tpTrader1, iSum1, l_tpIndexes1, m_tpStack1,
+                                  l_iStartI1, l_iStackPointer1))
+                return (false);
+
+        for (;;)
+        {
+            l_tpIndexes2.clear();
+
+            if (iSum2 && !bfGetItemIndexes(tpTrader2, iSum2, l_tpIndexes2,
+                                           m_tpStack2, l_iStartI2,
+                                           l_iStackPointer2))
+                return (false);
+
+            if (!bfCheckForInventoryCapacity(
+                    tpALifeHumanAbstract1, tpTrader1, l_tpIndexes1,
+                    tpALifeHumanAbstract2, tpTrader2, l_tpIndexes2))
+                continue;
+
+#ifdef DEBUG
+            string4096 S;
+            char *S1 = S;
+            if (psAI_Flags.test(aiALife))
+            {
+                S1 += xr_sprintf(S1, "%s -> ",
+                                 tpALifeHumanAbstract1->name_replace());
+
+                if (iSum1)
+                    for (int i = 0, n = l_tpIndexes1.size(); i < n; ++i)
+                        S1 += xr_sprintf(S1, "%3d", l_tpIndexes1[i]);
+            }
+#endif
+            if (iSum1 < iBalance + iSum2)
+            {
+#ifdef DEBUG
+                if (psAI_Flags.test(aiALife))
+                    S1 += xr_sprintf(S1, " + $%d",
+                                     iBalance + iSum2 - iSum1);
+#endif
+                R_ASSERT(int(tpALifeHumanAbstract1->m_dwMoney) >=
+                         iBalance + iSum2 - iSum1);
+                tpALifeHumanAbstract1->m_dwMoney -= iBalance + iSum2 - iSum1;
+                tpALifeHumanAbstract2->m_dwMoney += iBalance + iSum2 - iSum1;
+            }
+
+#ifdef DEBUG
+            if (psAI_Flags.test(aiALife))
+            {
+                S1 += xr_sprintf(S1, "\n%s -> ",
+                                 tpALifeHumanAbstract2->name_replace());
+
+                if (iSum2)
+                    for (int i = 0, n = l_tpIndexes2.size(); i < n; ++i)
+                        S1 += xr_sprintf(S1, "%3d", l_tpIndexes2[i]);
+            }
+#endif
+
+            if (iSum1 > iBalance + iSum2)
+            {
+#ifdef DEBUG
+                if (psAI_Flags.test(aiALife))
+                    S1 += xr_sprintf(S1, " + $%d",
+                                     iSum1 - iBalance - iSum2);
+#endif
+                R_ASSERT(int(tpALifeHumanAbstract2->m_dwMoney) >=
+                         iSum1 - iBalance - iSum2);
+                tpALifeHumanAbstract1->m_dwMoney += iSum1 - iBalance - iSum2;
+                tpALifeHumanAbstract2->m_dwMoney -= iSum1 - iBalance - iSum2;
+            }
+
+#ifdef DEBUG
+            if (psAI_Flags.test(aiALife))
+                Msg("%s\n Can trade!", S);
+#endif
+            return (true);
+        }
+    }
+}
+
+bool CALifeCommunicationManager::bfCheckForTrade(
+    CSE_ALifeHumanAbstract *tpALifeHumanAbstract1, ITEM_P_VECTOR &tpTrader1,
+    INT_VECTOR &tpSums1, int iMoney1, CSE_ALifeHumanAbstract
+    *tpALifeHumanAbstract2, ITEM_P_VECTOR &tpTrader2, INT_VECTOR &tpSums2,
+    int iMoney2, int iBalance)
+{
+    INT_IT I = tpSums1.begin();
+    INT_IT E = tpSums1.end();
+    INT_IT II = tpSums2.begin();
+    INT_IT EE = tpSums2.end();
+
+    for (; I != E; ++I)
+    {
+        if (*I + iMoney1 < iBalance)
+            continue;
+
+        if (*I < iBalance)
+        {
+            if (bfCheckForInventoryCapacity(
+                    tpALifeHumanAbstract1, tpTrader1, *I, iMoney1,
+                    tpALifeHumanAbstract2, tpTrader2, 0, iMoney2, iBalance))
+                break;
+        }
+        else
+        {
+            bool l_bOk = false;
+            II = tpSums2.begin();
+            for (; II != EE; ++II)
+                if (*I >= *II + iBalance)
+                    if (*I - *II - iBalance <= iMoney2)
+                    {
+                        if (bfCheckForInventoryCapacity(
+                                tpALifeHumanAbstract1, tpTrader1, *I, iMoney1,
+                                tpALifeHumanAbstract2, tpTrader2, *II, iMoney2,
+                                iBalance))
+                        {
+                            l_bOk = true;
+                            break;
+                        }
+                    }
+                    else
+                        continue;
+                else
+                    if (*I + iMoney1 >= *II + iBalance)
+                    {
+                        if (bfCheckForInventoryCapacity(
+                                tpALifeHumanAbstract1, tpTrader1, *I, iMoney1,
+                                tpALifeHumanAbstract2, tpTrader2, *II, iMoney2,
+                                iBalance))
+                        {
+                            l_bOk = true;
+                            break;
+                        }
+                    }
+                    else
+                        break;
+            if (l_bOk)
+                break;
+        }
+    }
+
+    if (I == E)
+    {
+#ifdef DEBUG
+        if (psAI_Flags.test(aiALife))
+            Msg("Can't trade!\n");
+#endif
+        return (false);
+    }
+    else
+        return (true);
+}
+
+bool CALifeCommunicationManager::bfCheckIfCanNullTradersBalance(
+    CSE_ALifeHumanAbstract *tpALifeHumanAbstract1,
+    CSE_ALifeHumanAbstract *tpALifeHumanAbstract2, int iItemCount1,
+    int iItemCount2, int iBalance)
+{
+    if (!iBalance)
+    {
+#ifdef DEBUG
+        if (psAI_Flags.test(aiALife))
+            Msg("Balance is null");
+#endif
+        return (true);
+    }
+
+    if (iBalance < 0)
+    {
+        if (int(tpALifeHumanAbstract1->m_dwMoney) >= -iBalance)
+        {
+            tpALifeHumanAbstract1->m_dwMoney += iBalance;
+            tpALifeHumanAbstract2->m_dwMoney -= iBalance;
+#ifdef DEBUG
+            if (psAI_Flags.test(aiALife))
+                Msg("Balance is covered by money");
+#endif
+            return (true);
+        }
+    }
+    else
+        if (int(tpALifeHumanAbstract2->m_dwMoney) >= iBalance)
+        {
+            tpALifeHumanAbstract1->m_dwMoney += iBalance;
+            tpALifeHumanAbstract2->m_dwMoney -= iBalance;
+#ifdef DEBUG
+            if (psAI_Flags.test(aiALife))
+                Msg("Balance is covered by money");
+#endif
+            return (true);
+        }
+
+    vfFillTraderVector(tpALifeHumanAbstract1, iItemCount1, m_tpTrader1);
+    vfFillTraderVector(tpALifeHumanAbstract2, iItemCount2, m_tpTrader2);
+
+    std::sort(m_tpTrader1.begin(), m_tpTrader1.end(),
+              CSortItemByValuePredicate());
+    std::sort(m_tpTrader2.begin(), m_tpTrader2.end(),
+              CSortItemByValuePredicate());
+
+#ifdef DEBUG
+    if (psAI_Flags.test(aiALife))
+    {
+        {
+            string4096 S;
+            char *S1 = S;
+            S1 += xr_sprintf(S1, "%s [%5d]: ",
+                             tpALifeHumanAbstract1->name_replace(),
+                             tpALifeHumanAbstract1->m_dwMoney);
+            for (int i = 0, n = m_tpTrader1.size(); i < n; ++i)
+                S1 += xr_sprintf(S1, "%6d", m_tpTrader1[i]->m_dwCost);
+            Msg("%s", S);
+        }
+        {
+            string4096 S;
+            char *S1 = S;
+            S1 += xr_sprintf(S1, "%s [%5d]: ",
+                             tpALifeHumanAbstract2->name_replace(),
+                             tpALifeHumanAbstract2->m_dwMoney);
+            for (int i = 0, n = m_tpTrader2.size(); i < n; ++i)
+                S1 += xr_sprintf(S1, "%6d", m_tpTrader2[i]->m_dwCost);
+            Msg("%s", S);
+        }
+        Msg("Balance : %6d", iBalance);
+    }
+#endif
+
+    vfGenerateSums(m_tpTrader1, m_tpSums1);
+    vfGenerateSums(m_tpTrader2, m_tpSums2);
+
+#ifdef DEBUG
+    if (psAI_Flags.test(aiALife))
+    {
+        {
+            string4096 S;
+            char *S1 = S;
+            S1 += xr_sprintf(S1, "%s : ",
+                             tpALifeHumanAbstract1->name_replace());
+            INT_IT I = m_tpSums1.begin();
+            INT_IT E = m_tpSums1.end();
+            for (; I != E; ++I)
+                S1 += xr_sprintf(S1, "%6d", *I);
+            Msg("%s", S);
+        }
+        {
+            string4096 S;
+            char *S1 = S;
+            S1 += xr_sprintf(S1, "%s : ",
+                             tpALifeHumanAbstract2->name_replace());
+            INT_IT I = m_tpSums2.begin();
+            INT_IT E = m_tpSums2.end();
+            for (; I != E; ++I)
+                S1 += xr_sprintf(S1, "%6d", *I);
+            Msg("%s", S);
+        }
+    }
+#endif
+
+    if (iBalance < 0)
+        return (bfCheckForTrade(
+            tpALifeHumanAbstract1, m_tpTrader1, m_tpSums1,
+            tpALifeHumanAbstract1->m_dwMoney, tpALifeHumanAbstract2,
+            m_tpTrader2, m_tpSums2, tpALifeHumanAbstract2->m_dwMoney,
+            _abs(iBalance)));
+    else
+        return (bfCheckForTrade(
+            tpALifeHumanAbstract2, m_tpTrader2, m_tpSums2,
+            tpALifeHumanAbstract2->m_dwMoney, tpALifeHumanAbstract1,
+            m_tpTrader1, m_tpSums1, tpALifeHumanAbstract1->m_dwMoney,
+            iBalance));
+}
+
+
 
 
 /**
