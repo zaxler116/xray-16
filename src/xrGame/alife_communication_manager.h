@@ -133,6 +133,13 @@ public:
         ALife::ITEM_P_VECTOR& tpItemVector);
     void vfRestoreItems(CSE_ALifeHumanAbstract* tpALifeHumanAbstract,
         ALife::ITEM_P_VECTOR& tpItemVector);
+    // Stage 4.5: live (2003 logic)
+    void vfFillTraderVector(CSE_ALifeHumanAbstract* tpALifeHumanAbstract,
+        int iItemCount, ALife::ITEM_P_VECTOR& tpItemVector);
+    void vfGenerateSums(ALife::ITEM_P_VECTOR& tpTrader, ALife::INT_VECTOR& tpSums);
+    bool bfGetItemIndexes(ALife::ITEM_P_VECTOR& tpTrader, int iSum1,
+        ALife::INT_VECTOR& tpIndexes, ALife::SSumStackCell* tpStack,
+        int iStartI, int iStackPointer);
 #ifdef DEBUG
     void vfPrintItems(CSE_ALifeHumanAbstract* tpALifeHumanAbstract,
         ALife::ITEM_P_VECTOR& tpItemVector);

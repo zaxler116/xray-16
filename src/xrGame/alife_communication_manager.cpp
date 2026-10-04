@@ -19,6 +19,7 @@ using namespace ALife;
 
 using ITEM_P_IT = ITEM_P_VECTOR::iterator;
 using OBJECT_IT = OBJECT_VECTOR::iterator;
+using INT_IT = INT_VECTOR::iterator;
 
 // Stage 4.2: live trading macros and predicates (from the commented 2003
 // block further down; needed by 4.3+). CSortByOwnerPredicate uses
@@ -289,6 +290,99 @@ void CALifeCommunicationManager::vfAttachGatheredItems(
         l_tpALifeInventoryItem, true);
 #endif
   }
+}
+
+// Stage 4.5: live (2003 logic).
+void CALifeCommunicationManager::vfFillTraderVector(CSE_ALifeHumanAbstract *tpALifeHumanAbstract,
+                                                    int iItemCount,
+                                                    ITEM_P_VECTOR &tpItemVector)
+{
+  tpItemVector.clear();
+  OBJECT_IT I = tpALifeHumanAbstract->children.end() - iItemCount;
+  OBJECT_IT E = tpALifeHumanAbstract->children.end();
+  for (; I != E; ++I)
+    tpItemVector.push_back(smart_cast<CSE_ALifeInventoryItem *>(
+        ai().alife().objects().object(*I)));
+}
+
+void CALifeCommunicationManager::vfGenerateSums(ITEM_P_VECTOR &tpTrader,
+                                                INT_VECTOR &tpSums)
+{
+  int l_iStackPointer = 0;
+  tpSums.clear();
+  tpSums.push_back(0);
+  for (int i = 0, n = tpTrader.size(); i < n; ++i) {
+    PUSH_STACK(i + 1, n - 1, 0, m_tpStack1, l_iStackPointer);
+
+    for (; l_iStackPointer;) {
+      int i1, i2, iCurrentSum;
+
+      POP_STACK(i1, i2, iCurrentSum, m_tpStack1, l_iStackPointer);
+
+      if (!i1) {
+#ifdef KEEP_SORTED
+        INT_IT I = std::lower_bound(tpSums.begin(), tpSums.end(), iCurrentSum);
+        if ((tpSums.end() == I) || (*I != iCurrentSum)) {
+          tpSums.insert(I, iCurrentSum);
+          if (tpSums.size() >= SUM_COUNT_THRESHOLD)
+            return;
+        }
+#else
+        INT_IT I = std::find(tpSums.begin(), tpSums.end(), iCurrentSum);
+        if (tpSums.end() == I) {
+          tpSums.push_back(iCurrentSum);
+          if (tpSums.size() >= SUM_COUNT_THRESHOLD) {
+            sort(tpSums.begin(), tpSums.end());
+            return;
+          }
+        }
+#endif
+        continue;
+      }
+
+      for (int i = i2; i >= 0; --i)
+        PUSH_STACK(i1 - 1, i - 1, iCurrentSum + tpTrader[i]->m_dwCost,
+                   m_tpStack1, l_iStackPointer);
+    }
+  }
+#ifndef KEEP_SORTED
+  sort(tpSums.begin(), tpSums.end());
+#endif
+}
+
+bool CALifeCommunicationManager::bfGetItemIndexes(ITEM_P_VECTOR &tpTrader,
+                                                  int iSum1, INT_VECTOR &tpIndexes,
+                                                  SSumStackCell *tpStack,
+                                                  int iStartI, int iStackPointer)
+{
+  for (int j = iStartI, n = tpTrader.size(); j < n; ++j) {
+    PUSH_STACK(j + 1, n - 1, 0, tpStack, iStackPointer);
+    tpIndexes.resize(j + 2);
+
+    for (; iStackPointer;) {
+      int i1, i2, iCurrentSum;
+
+      POP_STACK(i1, i2, iCurrentSum, tpStack, iStackPointer);
+
+      tpIndexes[i1] = i2 + 1;
+
+      if (!i1) {
+        if (iCurrentSum == iSum1) {
+          tpIndexes.resize(j + 1);
+          return (true);
+        }
+        continue;
+      }
+
+      if (iCurrentSum >= iSum1)
+        continue;
+
+      for (int i = i2; i >= 0; --i)
+        PUSH_STACK(i1 - 1, i - 1, iCurrentSum + tpTrader[i]->m_dwCost, tpStack,
+                   iStackPointer);
+    }
+  }
+  return (false);
 }
 
 // Stage 4.1: live no-op definition. The 2003 body (vfPerformTrading over
