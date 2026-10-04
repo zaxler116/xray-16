@@ -180,7 +180,44 @@ int CALifeHumanObjectHandler::choose_detector(ALife::OBJECT_VECTOR *objects) {
   return (-1);
 }
 int CALifeHumanObjectHandler::choose_valuables() { return (-1); }
-bool CALifeHumanObjectHandler::choose_fast() { return (false); }
+// Stage 3.3: 2003 CSE_ALifeHumanAbstract::bfChooseFast (save L335-367):
+// quick check whether the human can grab every detected item at once
+// (mass budget). Volume check dropped: no m_iVolume in 2005.
+bool CALifeHumanObjectHandler::choose_fast()
+{
+  object_type& object = *m_object;
+  ALife::ITEM_P_VECTOR& items =
+      const_cast<ALife::ITEM_P_VECTOR&>(ai().alife().m_temp_item_vector);
+
+  u32 l_dwCurrentItemCount = object.children.size();
+  float l_fCumulativeItemMass = object.m_fCumulativeItemMass;
+  bool l_bOk = true;
+
+  ALife::ITEM_P_VECTOR::const_iterator I = items.begin();
+  ALife::ITEM_P_VECTOR::const_iterator E = items.end(), J = E - 1;
+  for (; I != E; ++I)
+    if ((I != J) || can_take_item(*I)) {
+      object.m_fCumulativeItemMass += (*I)->m_fMass;
+      object.children.push_back((*I)->base()->ID);
+    } else {
+      l_bOk = false;
+      break;
+    }
+
+  object.m_fCumulativeItemMass = l_fCumulativeItemMass;
+  object.children.resize(l_dwCurrentItemCount);
+
+  if (l_bOk) {
+    I = items.begin();
+    for (; I != E; ++I)
+      const_cast<CALifeSimulator&>(ai().alife())
+          .graph()
+          .attach(object, *I, smart_cast<CSE_ALifeDynamicObject*>(*I)->m_tGraphID);
+    return (true);
+  }
+
+  return (false);
+}
 void CALifeHumanObjectHandler::choose_group(
     CSE_ALifeGroupAbstract *group_abstract) {}
 void CALifeHumanObjectHandler::detach_all(bool fictitious) {}
