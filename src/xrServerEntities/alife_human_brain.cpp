@@ -64,6 +64,34 @@ bool CALifeHumanBrain::perform_attack()
     return (m_object->bfPerformAttack());
 }
 
+// Stage 1.3: human meet-action logic, restored from the 2003 code
+// (CSE_ALifeHumanAbstract::tfGetActionType, alife_human_brain_save.h L48-62).
+// A human meeting a friend in a monster-vs-monster combat type gets Interact
+// (the 2003 human/monster difference vs CALifeMonsterBrain::action_type);
+// otherwise the 2003 human logic is: mutual detection or an Attack combat
+// action means Attack, else Ignore. Other combat types always mean Attack.
+ALife::EMeetActionType
+CALifeHumanBrain::action_type(CSE_ALifeSchedulable *tpALifeSchedulable,
+                              const int &iGroupIndex,
+                              const bool &bMutualDetection) {
+  if (ALife::eCombatTypeMonsterMonster == ai().alife().combat_type()) {
+    CSE_ALifeMonsterAbstract *l_tpALifeMonsterAbstract =
+        smart_cast<CSE_ALifeMonsterAbstract *>(tpALifeSchedulable);
+    R_ASSERT2(l_tpALifeMonsterAbstract, "Inconsistent meet action type");
+    return (ALife::eRelationTypeFriend ==
+                    ai().alife().relation_type(m_object,
+                                               l_tpALifeMonsterAbstract)
+                ? ALife::eMeetActionTypeInteract
+                : ((bMutualDetection ||
+                    const_cast<CALifeSimulator &>(ai().alife())
+                            .choose_combat_action(iGroupIndex) ==
+                        ALife::eCombatActionAttack)
+                       ? ALife::eMeetActionTypeAttack
+                       : ALife::eMeetActionTypeIgnore));
+  } else
+    return (ALife::eMeetActionTypeAttack);
+}
+
 void CALifeHumanBrain::on_state_write(NET_Packet& packet)
 {
     if (packet.inistream == nullptr)

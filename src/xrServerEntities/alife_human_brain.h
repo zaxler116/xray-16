@@ -50,6 +50,15 @@ public:
   // brain). Until then the human never actually attacks, so this is dead code.
   virtual bool perform_attack();
 
+  // Stage 1.3: human meet-action logic from the 2003 code
+  // (CSE_ALifeHumanAbstract::tfGetActionType in alife_human_brain_save.h).
+  // Unlike the monster brain, a human meeting a *friend* returns Interact
+  // (the 2003 human/monster distinction); other combat types fall through to
+  // Attack.
+  virtual ALife::EMeetActionType
+  action_type(CSE_ALifeSchedulable *tpALifeSchedulable, const int &iGroupIndex,
+              const bool &bMutualDetection);
+
 public:
   IC object_type &object() const;
   IC object_handler_type &objects() const;
