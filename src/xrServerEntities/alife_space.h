@@ -10,7 +10,6 @@
 #include "xrCommon/xr_map.h"
 #include "xrCommon/xr_vector.h"
 
-
 // ALife objects, events and tasks
 #define ALIFE_VERSION 0x0007
 #define ALIFE_CHUNK_DATA 0x0000
@@ -179,6 +178,7 @@ constexpr EHitType g_tfInfluenceType2HitType(EInfluenceType tInfluenceType) {
   }
   return eHitTypeMax;
 }
+
 
 using INT_VECTOR = xr_vector<int>;
 using OBJECT_VECTOR = xr_vector<_OBJECT_ID>;

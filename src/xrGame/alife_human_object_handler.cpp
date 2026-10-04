@@ -15,6 +15,17 @@
 // Stage 2.2: needed by best_detector() to reach member->brain().objects()
 #include "alife_human_brain.h"
 #include "alife_graph_registry.h"
+#include "ef_storage.h"
+#include "ef_primary.h"
+#include "ef_pattern.h"
+
+// 2003: removed from the item list the items already attached to the
+// object (used by the choose_* methods after each pick-up pass).
+struct CRemoveAttachedItemsPredicate {
+  IC bool operator()(const CSE_ALifeInventoryItem *item) {
+    return (item->attached());
+  };
+};
 
 // Stage 2.1: count the ammo of the given weapon section the object carries
 // (2003 CSE_ALifeHumanAbstract::get_available_ammo_count, save L171-185).
@@ -161,25 +172,244 @@ void CALifeHumanObjectHandler::collect_ammo_boxes() {
     --n;
   }
 }
-int CALifeHumanObjectHandler::choose_equipment(ALife::OBJECT_VECTOR *objects) {
-  return (-1);
-}
+// Stage 3.4: 2003 ifChooseEquipment (save L369-410) was a stub - the
+// game design forbids stalkers from changing their equipment.
+int CALifeHumanObjectHandler::choose_equipment(ALife::OBJECT_VECTOR* objects) { return (0); }
+// Stage 3.4: 2003 ifChooseWeapon (save L412-485). Picks the most valuable
+// weapon of the requested priority class among the detected items,
+// attaches it plus its ammo boxes, then prunes m_temp_item_vector.
+// Money check dropped (no m_dwTotalMoney in 2005; Stage 4 handles
+// trading money).
 int CALifeHumanObjectHandler::choose_weapon(
-    const ALife::EWeaponPriorityType &weapon_priority_type,
-    ALife::OBJECT_VECTOR *objects) {
-  return (-1);
+    const ALife::EWeaponPriorityType& weapon_priority_type, ALife::OBJECT_VECTOR* objects)
+{
+  object_type& object = *m_object;
+  ALife::ITEM_P_VECTOR& items =
+      const_cast<ALife::ITEM_P_VECTOR&>(ai().alife().m_temp_item_vector);
+
+  CSE_ALifeInventoryItem* l_tpALifeItemBest = 0;
+  float l_fItemBestValue = -1.f;
+  ai().ef_storage().alife_evaluation(true);
+  ai().ef_storage().alife().member() = &object;
+
+  ALife::ITEM_P_VECTOR::const_iterator I = items.begin();
+  ALife::ITEM_P_VECTOR::const_iterator E = items.end();
+  for (; I != E; ++I) {
+    // checking if it is a hand weapon
+    ai().ef_storage().alife().member_item() =
+        const_cast<CSE_ALifeObject*>(smart_cast<CSE_ALifeObject*>(*I));
+    int j = ai().ef_storage().m_pfPersonalWeaponType->dwfGetWeaponType();
+    float l_fCurrentValue = -1.f;
+    switch (weapon_priority_type) {
+    case ALife::eWeaponPriorityTypeKnife: {
+      if (1 != j)
+        continue;
+      l_fCurrentValue = ai().ef_storage().m_pfItemValue->ffGetValue();
+      break;
+    }
+    case ALife::eWeaponPriorityTypeSecondary: {
+      if (5 != j)
+        continue;
+      l_fCurrentValue = ai().ef_storage().m_pfSmallWeaponValue->ffGetValue();
+      break;
+    }
+    case ALife::eWeaponPriorityTypePrimary: {
+      if ((6 != j) && (8 != j) && (9 != j))
+        continue;
+      l_fCurrentValue = ai().ef_storage().m_pfMainWeaponValue->ffGetValue();
+      break;
+    }
+    case ALife::eWeaponPriorityTypeGrenade: {
+      if (7 != j)
+        continue;
+      l_fCurrentValue = ai().ef_storage().m_pfItemValue->ffGetValue();
+      break;
+    }
+    default:
+      NODEFAULT;
+    }
+    // choosing the best item
+    if ((l_fCurrentValue > l_fItemBestValue) && can_take_item(*I) &&
+        (!objects ||
+         (std::find(objects->begin(), objects->end(), (*I)->base()->ID) == objects->end()))) {
+      l_fItemBestValue = l_fCurrentValue;
+      l_tpALifeItemBest = *I;
+    }
+  }
+
+  if (l_tpALifeItemBest) {
+    u32 l_dwCount = object.children.size();
+
+    if (!objects)
+      const_cast<CALifeSimulator&>(ai().alife())
+          .graph()
+          .attach(object, l_tpALifeItemBest,
+                   smart_cast<CSE_ALifeDynamicObject*>(l_tpALifeItemBest)->m_tGraphID);
+    else
+      object.children.push_back(l_tpALifeItemBest->base()->ID);
+
+    attach_available_ammo(smart_cast<CSE_ALifeItemWeapon*>(l_tpALifeItemBest), items, objects);
+
+    if (!objects) {
+      ALife::ITEM_P_VECTOR::iterator it =
+          std::remove_if(items.begin(), items.end(), CRemoveAttachedItemsPredicate());
+      items.erase(it, items.end());
+    }
+    return (object.children.size() - l_dwCount);
+  }
+  return (0);
 }
 
-int CALifeHumanObjectHandler::choose_food(ALife::OBJECT_VECTOR *objects) {
-  return (-1);
+// Stage 3.4: 2003 ifChooseFood (save L487-523). Money check dropped
+// (see choose_weapon). MAX_ITEM_FOOD_COUNT = 1, same value as
+// ai_stalker_alife.cpp.
+int CALifeHumanObjectHandler::choose_food(ALife::OBJECT_VECTOR* objects)
+{
+  object_type& object = *m_object;
+  ALife::ITEM_P_VECTOR& items =
+      const_cast<ALife::ITEM_P_VECTOR&>(ai().alife().m_temp_item_vector);
+  constexpr u32 MAX_ITEM_FOOD_COUNT = 1;
+
+  ai().ef_storage().alife_evaluation(true);
+  ai().ef_storage().alife().member() = &object;
+
+  u32 l_dwCount = 0;
+  ALife::ITEM_P_VECTOR::const_iterator I = items.begin();
+  ALife::ITEM_P_VECTOR::const_iterator E = items.end();
+  for (; I != E; ++I) {
+    if ((*I)->m_iFoodValue <= 0)
+      continue;
+    if (can_take_item(*I) &&
+        (!objects ||
+         (std::find(objects->begin(), objects->end(), (*I)->base()->ID) == objects->end()))) {
+      if (!objects)
+        const_cast<CALifeSimulator&>(ai().alife())
+            .graph()
+            .attach(object, *I, smart_cast<CSE_ALifeDynamicObject*>(*I)->m_tGraphID);
+      else
+        object.children.push_back((*I)->base()->ID);
+      ++l_dwCount;
+      if (l_dwCount >= MAX_ITEM_FOOD_COUNT)
+        break;
+    }
+  }
+
+  if (l_dwCount && !objects) {
+    ALife::ITEM_P_VECTOR::iterator it =
+        std::remove_if(items.begin(), items.end(), CRemoveAttachedItemsPredicate());
+    items.erase(it, items.end());
+  }
+  return (l_dwCount);
 }
-int CALifeHumanObjectHandler::choose_medikit(ALife::OBJECT_VECTOR *objects) {
-  return (-1);
+// Stage 3.4: 2003 ifChooseMedikit (save L525-557). Money check dropped
+// (see choose_weapon). MAX_ITEM_MEDIKIT_COUNT = 1.
+int CALifeHumanObjectHandler::choose_medikit(ALife::OBJECT_VECTOR* objects)
+{
+  object_type& object = *m_object;
+  ALife::ITEM_P_VECTOR& items =
+      const_cast<ALife::ITEM_P_VECTOR&>(ai().alife().m_temp_item_vector);
+  constexpr u32 MAX_ITEM_MEDIKIT_COUNT = 1;
+
+  u32 l_dwCount = 0;
+  ALife::ITEM_P_VECTOR::const_iterator I = items.begin();
+  ALife::ITEM_P_VECTOR::const_iterator E = items.end();
+  for (; I != E; ++I) {
+    if ((*I)->m_iHealthValue <= 0)
+      continue;
+    if (can_take_item(*I) &&
+        (!objects ||
+         (std::find(objects->begin(), objects->end(), (*I)->base()->ID) == objects->end()))) {
+      if (!objects)
+        const_cast<CALifeSimulator&>(ai().alife())
+            .graph()
+            .attach(object, *I, smart_cast<CSE_ALifeDynamicObject*>(*I)->m_tGraphID);
+      else
+        object.children.push_back((*I)->base()->ID);
+      ++l_dwCount;
+      if (l_dwCount >= MAX_ITEM_MEDIKIT_COUNT)
+        break;
+    }
+  }
+
+  if (l_dwCount && !objects) {
+    ALife::ITEM_P_VECTOR::iterator it =
+        std::remove_if(items.begin(), items.end(), CRemoveAttachedItemsPredicate());
+    items.erase(it, items.end());
+  }
+  return (l_dwCount);
 }
-int CALifeHumanObjectHandler::choose_detector(ALife::OBJECT_VECTOR *objects) {
-  return (-1);
+// Stage 3.4: 2003 ifChooseDetector (save L559-597). Evaluates each
+// detected detector with m_pfEquipmentType and keeps the best one.
+// Money check dropped (see choose_weapon).
+int CALifeHumanObjectHandler::choose_detector(ALife::OBJECT_VECTOR* objects)
+{
+  object_type& object = *m_object;
+  ALife::ITEM_P_VECTOR& items =
+      const_cast<ALife::ITEM_P_VECTOR&>(ai().alife().m_temp_item_vector);
+
+  CSE_ALifeInventoryItem* l_tpALifeItemBest = 0;
+  float l_fItemBestValue = -1.f;
+  ai().ef_storage().alife_evaluation(true);
+  ai().ef_storage().alife().member() = &object;
+
+  ALife::ITEM_P_VECTOR::const_iterator I = items.begin(), X;
+  ALife::ITEM_P_VECTOR::const_iterator E = items.end();
+  for (; I != E; ++I) {
+    CSE_ALifeItemDetector* l_tpALifeItem = smart_cast<CSE_ALifeItemDetector*>(*I);
+    if (!l_tpALifeItem)
+      continue;
+    // evaluating item
+    ai().ef_storage().alife().member_item() =
+        const_cast<CSE_ALifeObject*>(smart_cast<CSE_ALifeObject*>(l_tpALifeItem));
+    float l_fCurrentValue = ai().ef_storage().m_pfEquipmentType->ffGetValue();
+    // choosing the best item
+    if ((l_fCurrentValue > l_fItemBestValue) && can_take_item(l_tpALifeItem) &&
+        (!objects ||
+         (std::find(objects->begin(), objects->end(), l_tpALifeItem->base()->ID) ==
+          objects->end()))) {
+      l_fItemBestValue = l_fCurrentValue;
+      l_tpALifeItemBest = l_tpALifeItem;
+      X = I;
+    }
+  }
+
+  if (l_tpALifeItemBest) {
+    if (!objects) {
+      const_cast<CALifeSimulator&>(ai().alife())
+          .graph()
+          .attach(object, l_tpALifeItemBest,
+                   smart_cast<CSE_ALifeDynamicObject*>(l_tpALifeItemBest)->m_tGraphID);
+      items.erase(X);
+    } else
+      object.children.push_back(l_tpALifeItemBest->base()->ID);
+    return (1);
+  }
+  return (0);
 }
-int CALifeHumanObjectHandler::choose_valuables() { return (-1); }
+// Stage 3.4: 2003 ifChooseValuables (save L599-614): attach the rest
+// of the detected items that fit the mass budget, then prune the
+// list.
+int CALifeHumanObjectHandler::choose_valuables()
+{
+  object_type& object = *m_object;
+  ALife::ITEM_P_VECTOR& items =
+      const_cast<ALife::ITEM_P_VECTOR&>(ai().alife().m_temp_item_vector);
+
+  ALife::ITEM_P_VECTOR::const_iterator I = items.begin();
+  ALife::ITEM_P_VECTOR::const_iterator E = items.end();
+  for (; I != E; ++I)
+    if (can_take_item(*I))
+      const_cast<CALifeSimulator&>(ai().alife())
+          .graph()
+          .attach(object, *I, smart_cast<CSE_ALifeDynamicObject*>(*I)->m_tGraphID);
+
+  u32 l_dwCount = object.children.size();
+  ALife::ITEM_P_VECTOR::iterator it =
+      std::remove_if(items.begin(), items.end(), CRemoveAttachedItemsPredicate());
+  items.erase(it, items.end());
+
+  return (object.children.size() - l_dwCount);
+}
 // Stage 3.3: 2003 CSE_ALifeHumanAbstract::bfChooseFast (save L335-367):
 // quick check whether the human can grab every detected item at once
 // (mass budget). Volume check dropped: no m_iVolume in 2005.

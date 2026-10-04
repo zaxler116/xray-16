@@ -10,11 +10,5 @@
 
 #include "xrServer_Objects_ALife_Items.h"
 
-namespace ALifeCommunication {
-class CRemoveAttachedItemsPredicate {
-public:
-  IC bool operator()(const CSE_ALifeInventoryItem *item) {
-    return (item->attached());
-  };
-};
-} // namespace ALifeCommunication
+// Stage 3.4: CRemoveAttachedItemsPredicate moved to alife_space.h
+// (the human object handler needs it before Stage 4).
