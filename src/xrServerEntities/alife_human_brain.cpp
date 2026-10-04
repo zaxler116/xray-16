@@ -59,6 +59,11 @@ CALifeHumanBrain::~CALifeHumanBrain()
     xr_delete(m_object_handler);
 }
 
+bool CALifeHumanBrain::perform_attack()
+{
+    return (m_object->bfPerformAttack());
+}
+
 void CALifeHumanBrain::on_state_write(NET_Packet& packet)
 {
     if (packet.inistream == nullptr)

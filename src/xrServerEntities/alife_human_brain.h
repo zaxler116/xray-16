@@ -42,6 +42,14 @@ public:
   void on_state_write(NET_Packet &packet);
   void on_state_read(NET_Packet &packet);
 
+  // Stage 1.2: route the human's attack through the object. NOTE: this is a
+  // temporary bridge - CSE_ALifeHumanAbstract::bfPerformAttack() currently
+  // delegates back to brain().perform_attack(), so this pair recurses until
+  // Stage 2.3 replaces CSE_ALifeHumanAbstract::bfPerformAttack() with the real
+  // 2003 logic (which works on object state and does not call back into the
+  // brain). Until then the human never actually attacks, so this is dead code.
+  virtual bool perform_attack();
+
 public:
   IC object_type &object() const;
   IC object_handler_type &objects() const;
