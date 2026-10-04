@@ -9,6 +9,72 @@
 #include "alife_communication_manager.h"
 #include "StdAfx.h"
 #include "alife_communication_space.h"
+#include "xrServer_Objects_ALife_Monsters.h"
+#include "xrServer_Objects_ALife_Items.h"
+
+using namespace ALife;
+
+// Stage 4.2: live trading macros and predicates (from the commented 2003
+// block further down; needed by 4.3+). CSortByOwnerPredicate uses
+// CSE_ALifeInventoryItem::m_tPreviousParentID, which has no 2005 analog,
+// so it is kept commented until Stage 4.4 (vfAttachGatheredItems).
+#define KEEP_SORTED
+
+#define PUSH_STACK(a,b,c,e,f) {\
+    (e)[(f)].i1 = (a);\
+    (e)[(f)].i2 = (b);\
+    (e)[(f)].iCurrentSum = (c);\
+    ++(f);\
+}
+
+#define POP_STACK(a,b,c,e,f) {\
+    --(f);\
+    (a) = (e)[(f)].i1;\
+    (b) = (e)[(f)].i2;\
+    (c) = (e)[(f)].iCurrentSum;\
+}
+
+class CSortItemByValuePredicate {
+public:
+  IC bool operator()(const CSE_ALifeInventoryItem *tpALifeInventoryItem1,
+                     const CSE_ALifeInventoryItem *tpALifeInventoryItem2) const
+  {
+    return (tpALifeInventoryItem1->m_dwCost < tpALifeInventoryItem2->m_dwCost);
+  }
+};
+
+/**
+class CSortByOwnerPredicate {
+public:
+    ALife::_OBJECT_ID				m_tParentID;
+
+                                    CSortByOwnerPredicate
+(ALife::_OBJECT_ID tParentID)
+    {
+        m_tParentID					= tParentID;
+    }
+
+    IC bool							operator()
+(const CSE_ALifeInventoryItem *tpALifeInventoryItem1, const
+CSE_ALifeInventoryItem *tpALifeInventoryItem2) const
+    {
+        if (tpALifeInventoryItem1->m_dwCost == tpALifeInventoryItem2->m_dwCost)
+            if (tpALifeInventoryItem1->m_tPreviousParentID == m_tParentID)
+                if (tpALifeInventoryItem2->m_tPreviousParentID == m_tParentID)
+                    return
+(tpALifeInventoryItem1->base()->ID < tpALifeInventoryItem2->base()->ID); else
+                    return				(true);
+            else
+                if (tpALifeInventoryItem2->m_tPreviousParentID == m_tParentID)
+                    return				(false);
+                else
+                    return
+(tpALifeInventoryItem1->base()->ID < tpALifeInventoryItem2->base()->ID); else
+            return
+(tpALifeInventoryItem1->m_dwCost > tpALifeInventoryItem2->m_dwCost);
+    }
+};
+**/
 
 // Stage 4.1: live no-op definition. The 2003 body (vfPerformTrading over
 // combat groups) is restored in Stage 4.7; the commented block further
@@ -54,47 +120,8 @@ using namespace ALifeCommunication;
     (c) = (e)[(f)].iCurrentSum;\
 }
 
-class CSortItemByValuePredicate {
-public:
-    IC bool							operator()
-(const CSE_ALifeInventoryItem *tpALifeInventoryItem1, const
-CSE_ALifeInventoryItem *tpALifeInventoryItem2)  const
-    {
-        return
-(tpALifeInventoryItem1->m_dwCost < tpALifeInventoryItem2->m_dwCost);
-    };
-};
-
-class CSortByOwnerPredicate {
-public:
-    ALife::_OBJECT_ID				m_tParentID;
-
-                                    CSortByOwnerPredicate
-(ALife::_OBJECT_ID tParentID)
-    {
-        m_tParentID					= tParentID;
-    }
-
-    IC bool							operator()
-(const CSE_ALifeInventoryItem *tpALifeInventoryItem1, const
-CSE_ALifeInventoryItem *tpALifeInventoryItem2) const
-    {
-        if (tpALifeInventoryItem1->m_dwCost == tpALifeInventoryItem2->m_dwCost)
-            if (tpALifeInventoryItem1->m_tPreviousParentID == m_tParentID)
-                if (tpALifeInventoryItem2->m_tPreviousParentID == m_tParentID)
-                    return
-(tpALifeInventoryItem1->base()->ID < tpALifeInventoryItem2->base()->ID); else
-                    return				(true);
-            else
-                if (tpALifeInventoryItem2->m_tPreviousParentID == m_tParentID)
-                    return				(false);
-                else
-                    return
-(tpALifeInventoryItem1->base()->ID < tpALifeInventoryItem2->base()->ID); else
-            return
-(tpALifeInventoryItem1->m_dwCost > tpALifeInventoryItem2->m_dwCost);
-    }
-};
+// Stage 4.2: CSortItemByValuePredicate / CSortByOwnerPredicate /
+// PUSH_STACK / POP_STACK moved above (live) to this top of the file.
 **/
 
 CALifeCommunicationManager::CALifeCommunicationManager(IPureServer *server,

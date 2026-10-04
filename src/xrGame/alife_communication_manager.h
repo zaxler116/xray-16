@@ -43,6 +43,24 @@ class CALifeCommunicationManager : public virtual CALifeSimulatorBase
 
         ALife::SSumStackCell				m_tpStack1[MAX_STACK_DEPTH];
         ALife::SSumStackCell				m_tpStack2[MAX_STACK_DEPTH];
+    **/
+
+    // Stage 4.2: live trading buffers (fields of the commented block above)
+    static const u32 MAX_STACK_DEPTH = u32(128);
+    static const u32 SUM_COUNT_THRESHOLD = u32(30);
+
+    ALife::ITEM_P_VECTOR m_tpItems1;
+    ALife::ITEM_P_VECTOR m_tpItems2;
+    ALife::OBJECT_VECTOR m_tpBlockedItems1;
+    ALife::OBJECT_VECTOR m_tpBlockedItems2;
+    ALife::ITEM_P_VECTOR m_tpTrader1;
+    ALife::ITEM_P_VECTOR m_tpTrader2;
+    ALife::INT_VECTOR m_tpSums1;
+    ALife::INT_VECTOR m_tpSums2;
+    ALife::SSumStackCell m_tpStack1[MAX_STACK_DEPTH];
+    ALife::SSumStackCell m_tpStack2[MAX_STACK_DEPTH];
+
+    /**
     protected:
                 u32			dwfComputeItemCost				(ALife::ITEM_P_VECTOR		&tpItemVector);
                 void		vfRunFunctionByIndex			(CSE_ALifeHumanAbstract		*tpALifeHumanAbstract,
