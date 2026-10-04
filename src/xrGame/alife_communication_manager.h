@@ -138,6 +138,15 @@ public:
         ALife::ITEM_P_VECTOR& tpItemVector);
     void vfPrintItems(CSE_ALifeHumanAbstract* tpALifeHumanAbstract);
 #endif
+    // Stage 4.4: live (2003 logic, m_tPreviousParentID -> base()->ID_Parent)
+#ifdef FAST_OWNERSHIP
+    void vfAttachGatheredItems(CSE_ALifeTraderAbstract* tpALifeTraderAbstract1,
+        CSE_ALifeTraderAbstract* tpALifeTraderAbstract2,
+        ALife::OBJECT_VECTOR& tpObjectVector);
+#else
+    void vfAttachGatheredItems(CSE_ALifeTraderAbstract* tpALifeTraderAbstract1,
+        ALife::OBJECT_VECTOR& tpObjectVector);
+#endif
     /**
         virtual				~CALifeCommunicationManager		();
                 void		communicate_with_customer		(CSE_ALifeHumanAbstract		*tpALifeHumanAbstract,

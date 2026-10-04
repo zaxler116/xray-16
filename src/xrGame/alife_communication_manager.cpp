@@ -241,6 +241,56 @@ void CALifeCommunicationManager::vfRestoreItems(CSE_ALifeHumanAbstract *tpALifeH
   }
 }
 
+// Stage 4.4: live (2003 logic). 2003 tracked item ownership between the two
+// traders with CSE_ALifeInventoryItem::m_tPreviousParentID, which has no
+// 2005 analog. The check is a DEBUG-only invariant (items gathered from the
+// graph point belong to one of the two traders), so it is adapted to compare
+// base()->ID_Parent instead - no new field, no serialization impact.
+#ifdef FAST_OWNERSHIP
+void CALifeCommunicationManager::vfAttachGatheredItems(
+    CSE_ALifeTraderAbstract *tpALifeTraderAbstract1,
+    CSE_ALifeTraderAbstract *tpALifeTraderAbstract2, OBJECT_VECTOR &tpObjectVector)
+#else
+void CALifeCommunicationManager::vfAttachGatheredItems(
+    CSE_ALifeTraderAbstract *tpALifeTraderAbstract1, OBJECT_VECTOR &tpObjectVector)
+#endif
+{
+  tpObjectVector.clear();
+  tpObjectVector.insert(tpObjectVector.end(),
+                        tpALifeTraderAbstract1->base()->children.begin(),
+                        tpALifeTraderAbstract1->base()->children.end());
+  tpALifeTraderAbstract1->base()->children.clear();
+  tpALifeTraderAbstract1->vfInitInventory();
+  OBJECT_IT I = tpObjectVector.begin();
+  OBJECT_IT E = tpObjectVector.end();
+  for (; I != E; ++I) {
+#ifndef FAST_OWNERSHIP
+    CSE_ALifeDynamicObject *l_tpALifeDynamicObject =
+        ai().alife().objects().object(*I);
+    l_tpALifeDynamicObject->ID_Parent = 0xffff;
+    const_cast<CALifeSimulator &>(ai().alife()).graph().attach(
+        *tpALifeTraderAbstract1->base(),
+        smart_cast<CSE_ALifeInventoryItem *>(l_tpALifeDynamicObject),
+        l_tpALifeDynamicObject->m_tGraphID);
+#else
+    CSE_ALifeInventoryItem *l_tpALifeInventoryItem =
+        smart_cast<CSE_ALifeInventoryItem *>(ai().alife().objects().object(*I));
+#ifdef DEBUG
+    // 2003: m_tPreviousParentID invariant (item came from the other trader)
+    if (l_tpALifeInventoryItem->base()->ID_Parent !=
+        tpALifeTraderAbstract1->base()->ID) {
+      R_ASSERT(l_tpALifeInventoryItem->base()->ID_Parent ==
+               tpALifeTraderAbstract2->base()->ID);
+    }
+#endif
+    // 2003: CSE_ALifeTraderAbstract::attach() - in 2005 attach() lives on
+    // CSE_ALifeDynamicObject (the trader object).
+    smart_cast<CSE_ALifeDynamicObject *>(tpALifeTraderAbstract1->base())->attach(
+        l_tpALifeInventoryItem, true);
+#endif
+  }
+}
+
 // Stage 4.1: live no-op definition. The 2003 body (vfPerformTrading over
 // combat groups) is restored in Stage 4.7; the commented block further
 // down in this file is reference-only.
