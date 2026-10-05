@@ -125,6 +125,7 @@ public:
     CMainWeaponType* m_pfMainWeaponType;
     CMainWeaponPreference* m_pfMainWeaponPreference;
     CItemValue* m_pfItemValue;
+    CPatternFunction* m_pfItemValue2;
     CWeaponAmmoCount* m_pfWeaponAmmoCount;
     CDetectorType* m_pfDetectorType;
 

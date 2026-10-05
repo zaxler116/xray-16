@@ -61,6 +61,7 @@ CEF_Storage::CEF_Storage()
     m_pfEquipmentValue = xr_new<CPatternFunction>("common" DELIMITER "EquipmentValue.efd", this);
     m_pfMainWeaponValue = xr_new<CPatternFunction>("common" DELIMITER "MainWeaponValue.efd", this);
     m_pfSmallWeaponValue = xr_new<CPatternFunction>("common" DELIMITER "SmallWeaponValue.efd", this);
+    m_pfItemValue2 = xr_new<CPatternFunction>("common" DELIMITER "ItemValue2.efd", this);
     m_pfTerrainType = xr_new<CPatternFunction>("alife" DELIMITER "TerrainType.efd", this);
     m_pfWeaponAttackTimes = xr_new<CPatternFunction>("alife" DELIMITER "WeaponAttackTimes.efd", this);
     m_pfWeaponSuccessProbability = xr_new<CPatternFunction>("alife" DELIMITER "WeaponSuccessProbability.efd", this);
