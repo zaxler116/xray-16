@@ -13,6 +13,8 @@
 #include "alife_schedule_registry.h"
 #include "xrServer_Objects_ALife_Monsters.h"
 
+#include "alife_human_brain.h"
+#include "alife_human_object_handler.h"
 #include "alife_object_registry.h"
 #include "alife_spawn_registry.h"
 #include "alife_time_manager.h"
@@ -76,6 +78,44 @@ void CALifeCombatManager::vfFillCombatGroup(
     tpALifeSchedulable->tpfGetBestWeapon(l_tHitType, l_fHitPower);
   }
   m_tpaCombatObjects[iGroupIndex] = tpALifeSchedulable;
+  // W.2: the opposing group (if already filled) becomes the combat
+  // target for situation-aware weapon selection (W.3)
+  vfUpdateCombatTargets(iGroupIndex);
+}
+
+// W.2: for every human in group iGroupIndex, store the opposing
+// groups position and a representative enemy in the object handler, so
+// best_weapon() can score weapons by distance / enemy class / cluster.
+void CALifeCombatManager::vfUpdateCombatTargets(int iGroupIndex) {
+  const SCHEDULE_P_VECTOR &enemy_group = m_tpaCombatGroups[iGroupIndex ^ 1];
+  if (enemy_group.empty())
+    return;
+
+  xr_vector<Fvector> enemy_positions;
+  enemy_positions.reserve(enemy_group.size());
+  CSE_ALifeMonsterAbstract *rep = 0;
+  SCHEDULE_P_VECTOR::const_iterator E = enemy_group.begin();
+  for (; E != enemy_group.end(); ++E) {
+    CSE_ALifeMonsterAbstract *m = smart_cast<CSE_ALifeMonsterAbstract *>(*E);
+    if (!m)
+      continue;
+    if (!rep)
+      rep = m;
+    enemy_positions.push_back(m->draw_level_position());
+  }
+  if (!rep)
+    return;
+
+  SCHEDULE_P_VECTOR &self_group = m_tpaCombatGroups[iGroupIndex];
+  SCHEDULE_P_IT I = self_group.begin();
+  for (; I != self_group.end(); ++I) {
+    CSE_ALifeHumanAbstract *human = smart_cast<CSE_ALifeHumanAbstract *>(*I);
+    if (!human)
+      continue;
+    human->brain().objects().set_combat_target(rep->draw_level_position(), rep,
+                                               &enemy_positions[0],
+                                               (int)enemy_positions.size());
+  }
 }
 
 ECombatAction CALifeCombatManager::choose_combat_action(int iCombatGroupIndex) {
@@ -341,6 +381,9 @@ bool CALifeCombatManager::bfCheckIfRetreated(int iCombatGroupIndex) {
 }
 
 void CALifeCombatManager::vfPerformAttackAction(int iCombatGroupIndex) {
+  // W.2: refresh the combat context before best_weapon() is
+  // re-evaluated for the attacking group
+  vfUpdateCombatTargets(iCombatGroupIndex);
   ai().ef_storage().alife_evaluation(true);
   SCHEDULE_P_VECTOR &l_tCombatGroup = m_tpaCombatGroups[iCombatGroupIndex];
   SCHEDULE_P_IT I = l_tCombatGroup.begin();

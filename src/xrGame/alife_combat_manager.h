@@ -33,6 +33,8 @@ protected:
                              CSE_ALifeSchedulable *tpALifeSchedulable2,
                              int &iCombatGroupIndex, bool &bMutualDetection);
   void vfPerformAttackAction(int iCombatGroupIndex);
+  // W.2: feed combat context into human members' object handlers
+  void vfUpdateCombatTargets(int iGroupIndex);
   bool bfCheckIfRetreated(int iCombatGroupIndex);
   void vfFinishCombat(ALife::ECombatResult tCombatResult);
 

@@ -9,6 +9,7 @@
 #pragma once
 
 #include "alife_space.h"
+#include "xrServer_Objects_ALife.h"
 
 class CSE_ALifeItemWeapon;
 class CSE_ALifeInventoryItem;
@@ -22,6 +23,12 @@ public:
 
 private:
     object_type* m_object;
+    // W.2: combat context for situation-aware weapon selection (W.3).
+    // Filled by CALifeCombatManager before best_weapon() is re-evaluated.
+    CSE_ALifeMonsterAbstract* m_combat_target_enemy;
+    Fvector m_combat_target_pos;
+    xr_vector<Fvector> m_combat_enemy_positions;
+    bool m_bHasCombatTarget;
 
 public:
     IC CALifeHumanObjectHandler(object_type* object);
@@ -42,6 +49,13 @@ public:
     void process_items();
     CSE_ALifeDynamicObject* best_detector();
     CSE_ALifeItemWeapon* best_weapon();
+    // W.2: combat context accessors (set by the combat manager)
+    void set_combat_target(const Fvector& target_pos, CSE_ALifeMonsterAbstract* enemy, const Fvector* enemy_positions, int enemy_count);
+    void reset_combat_target();
+    bool has_combat_target() const;
+    CSE_ALifeMonsterAbstract* combat_target_enemy() const;
+    const Fvector& combat_target_pos() const;
+    const Fvector* combat_enemy_positions(int& count) const;
 
 public:
     int choose_equipment(ALife::OBJECT_VECTOR* objects = 0);

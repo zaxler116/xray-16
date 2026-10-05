@@ -1,6 +1,18 @@
 #pragma once
 
 namespace AlifeWeaponScore {
+namespace detail {
+// case-insensitive substring test on the creature section name
+IC bool section_contains(LPCSTR section, LPCSTR token) {
+  if (!section || !token || !*section || !*token)
+    return false;
+  for (const char *p = section; *p; ++p)
+    if (xr_stricmp(p, token) == 0)
+      return true;
+  return false;
+}
+} // namespace detail
+
 IC EAlifeEnemyType classify_enemy(u32 ef_creature, float hp) {
   // ef_creature_type from creatures ltx:
   //   0 = human, 1 = stalker, 2 = mutant, 3 = psy-mutant (controller/burer)
@@ -18,6 +30,17 @@ IC EAlifeEnemyType classify_enemy(u32 ef_creature, float hp) {
   }
 
   return eEnemyMedium;
+}
+
+// Section-name aware classification. User rule: GL is preferred
+// against chimera / controller / giant / burer.
+IC EAlifeEnemyType classify_enemy(u32 ef_creature, float hp, LPCSTR section) {
+  if (detail::section_contains(section, "chimera") ||
+      detail::section_contains(section, "giant") ||
+      detail::section_contains(section, "burer") ||
+      detail::section_contains(section, "controller"))
+    return eEnemyGrenadeTarget;
+  return classify_enemy(ef_creature, hp);
 }
 
 IC float class_factor(u32 w, EAlifeEnemyType e) {

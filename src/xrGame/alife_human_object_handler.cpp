@@ -607,6 +607,39 @@ CSE_ALifeDynamicObject *CALifeHumanObjectHandler::best_detector() {
 // candidate if it has ammo, or is a knife (slot 0) / secondary (slot 3). The
 // best (highest ef_weapon_type) candidate is stored in the object's
 // m_tpCurrentBestWeapon and reported back.
+// W.2: combat context (call sites: CALifeCombatManager::vfUpdateCombatTargets).
+// Consumed by W.3's situation-aware best_weapon().
+void CALifeHumanObjectHandler::set_combat_target(
+    const Fvector& target_pos, CSE_ALifeMonsterAbstract* enemy,
+    const Fvector* enemy_positions, int enemy_count)
+{
+    m_combat_target_pos = target_pos;
+    m_combat_target_enemy = enemy;
+    m_combat_enemy_positions.resize(enemy_count > 0 ? enemy_count : 0);
+    for (int i = 0; i < enemy_count; ++i)
+        m_combat_enemy_positions[i] = enemy_positions[i];
+    m_bHasCombatTarget = true;
+}
+
+void CALifeHumanObjectHandler::reset_combat_target()
+{
+    m_combat_target_enemy = 0;
+    m_combat_enemy_positions.clear();
+    m_bHasCombatTarget = false;
+}
+
+bool CALifeHumanObjectHandler::has_combat_target() const { return m_bHasCombatTarget; }
+
+CSE_ALifeMonsterAbstract* CALifeHumanObjectHandler::combat_target_enemy() const { return m_combat_target_enemy; }
+
+const Fvector& CALifeHumanObjectHandler::combat_target_pos() const { return m_combat_target_pos; }
+
+const Fvector* CALifeHumanObjectHandler::combat_enemy_positions(int& count) const
+{
+    count = (int)m_combat_enemy_positions.size();
+    return m_combat_enemy_positions.empty() ? 0 : &m_combat_enemy_positions[0];
+}
+
 CSE_ALifeItemWeapon *CALifeHumanObjectHandler::best_weapon() {
   object_type &object = *m_object;
   object.m_tpCurrentBestWeapon = 0;

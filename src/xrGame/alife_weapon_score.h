@@ -48,6 +48,9 @@ enum {
 // m_fMaxHealthValue. Returns the best-matching enemy type.
 // eEnemyGrenadeTarget is set for chimera/giant/burer/controller.
 IC EAlifeEnemyType classify_enemy(u32 ef_creature, float hp);
+// Section-name aware variant: chimera / giant / burer / controller
+// are grenade-launcher targets (eEnemyGrenadeTarget).
+IC EAlifeEnemyType classify_enemy(u32 ef_creature, float hp, LPCSTR section);
 
 // --- per-class factors ----------------------------------------------
 // factor(weapon_class, enemy_type) — multiplier on hit_power.

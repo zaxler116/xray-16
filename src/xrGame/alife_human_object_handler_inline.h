@@ -9,7 +9,8 @@
 #pragma once
 
 IC CALifeHumanObjectHandler::CALifeHumanObjectHandler(object_type* object)
-    : m_object(object), m_food_keep_days(1.0f), m_ammo_keep_factor(1.0f)
+    : m_object(object), m_combat_target_enemy(0), m_bHasCombatTarget(false),
+      m_food_keep_days(1.0f), m_ammo_keep_factor(1.0f)
 {
     VERIFY(object);
 
