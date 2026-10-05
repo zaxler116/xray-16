@@ -701,6 +701,7 @@ void CALifeCommunicationManager::vfPerformCommunication()
   }
 }
 
+
 // Stage 4.8: live (2003 logic, adapted to the 2005 API).
 // Sells all the customer's items to the trader, then buys back what the
 // customer wants (via vfRunFunctionByIndex). 2003 called tpALifeTrader->attach
@@ -829,6 +830,148 @@ void CALifeCommunicationManager::communicate_with_customer(
     tpALifeHumanAbstract->attach(original_pda, true);
   }
 }
+
+// V2.2 - compute_trade: pure computation of the trade plan.
+// Does NOT touch inventories. Returns the items the customer will give
+// (sell) and receive (buy back), plus the resulting money for the customer.
+// The customer's children must already be mirrored onto the ALife human
+// (i.e. the inventory is real) before calling this.
+void CALifeCommunicationManager::compute_trade(
+    CSE_ALifeHumanAbstract *tpALifeHumanAbstract, CSE_ALifeTrader *tpALifeTrader,
+    STradePlan &plan)
+{
+  plan.clear();
+  CALifeSimulator &l_tpSimulator = const_cast<CALifeSimulator &>(ai().alife());
+  plan.money_customer_start = tpALifeHumanAbstract->m_dwMoney;
+
+  // 1. what the customer will give = all its children (except the PDA)
+  plan.original_pda = 0;
+  {
+    ALife::OBJECT_IT I = tpALifeHumanAbstract->children.begin();
+    ALife::OBJECT_IT E = tpALifeHumanAbstract->children.end();
+    for (; I != E; ++I)
+    {
+      CSE_ALifeInventoryItem *item =
+          smart_cast<CSE_ALifeInventoryItem *>(ai().alife().objects().object(*I));
+      if (!item)
+        continue;
+      CSE_ALifeItemPDA *pda = smart_cast<CSE_ALifeItemPDA *>(item);
+      if (pda && (pda->m_original_owner == tpALifeHumanAbstract->ID))
+      {
+        VERIFY(!plan.original_pda);
+        plan.original_pda = pda;
+        continue; // the PDA is not sold
+      }
+      plan.customer_gives.push_back(item);
+    }
+  }
+
+  // 2. simulate the sale: customer's items go to the trader, money is computed
+  u32 money = plan.money_customer_start;
+  for (ALife::ITEM_P_VECTOR::iterator G = plan.customer_gives.begin();
+       G != plan.customer_gives.end(); ++G)
+  {
+    u32 cost = tpALifeTrader->dwfGetItemCost(*G);
+    money += cost;
+  }
+
+  // 3. the trader's stock after the sale = its children + the customer's items
+  l_tpSimulator.m_temp_item_vector.clear();
+  append_item_vector(tpALifeTrader->children, l_tpSimulator.m_temp_item_vector);
+  for (ALife::ITEM_P_VECTOR::iterator G = plan.customer_gives.begin();
+       G != plan.customer_gives.end(); ++G)
+    l_tpSimulator.m_temp_item_vector.push_back(*G);
+
+  // 4. what the customer will receive: run the choose_* handlers on the
+  //    simulated stock. The handlers only inspect the vectors and record
+  //    their picks in tpBlockedItems (they do not attach anything), so this
+  //    is a pure computation.
+  m_tpBlockedItems1.clear();
+  for (int i = 0; i < 8; ++i)
+  {
+    int l_iItemCount = 0;
+    vfRunFunctionByIndex(tpALifeHumanAbstract, m_tpBlockedItems1,
+                         l_tpSimulator.m_temp_item_vector, i, l_iItemCount);
+    if (l_iItemCount)
+    {
+      // the items the customer picks are the last l_iItemCount entries of
+      // m_tpBlockedItems1 (the handler appends them in order)
+      ALife::OBJECT_VECTOR &blocked = m_tpBlockedItems1;
+      for (int k = int(blocked.size()) - l_iItemCount; k < int(blocked.size()); ++k)
+      {
+        CSE_ALifeInventoryItem *item =
+            smart_cast<CSE_ALifeInventoryItem *>(ai().alife().objects().object(blocked[k]));
+        if (item)
+          plan.customer_receives.push_back(item);
+      }
+      blocked.resize(blocked.size() - l_iItemCount);
+    }
+  }
+
+  // 5. money after the purchase: the customer pays for what it receives
+  for (ALife::ITEM_P_VECTOR::iterator R = plan.customer_receives.begin();
+       R != plan.customer_receives.end(); ++R)
+    money -= (*R)->m_dwCost;
+
+  plan.money_customer_end = money;
+}
+
+// V2.2 - apply_trade: apply the plan to the ALife inventories.
+// Moves the items according to the plan and sets the money.
+void CALifeCommunicationManager::apply_trade(
+    CSE_ALifeHumanAbstract *tpALifeHumanAbstract, CSE_ALifeTrader *tpALifeTrader,
+    const STradePlan &plan)
+{
+  // 1. sell: detach the customer's items and attach them to the trader
+  for (ALife::ITEM_P_VECTOR::const_iterator G = plan.customer_gives.begin();
+       G != plan.customer_gives.end(); ++G)
+  {
+    tpALifeHumanAbstract->detach(*G, 0, true, false);
+    smart_cast<CSE_ALifeDynamicObject *>(tpALifeTrader->base())->attach(*G, true);
+  }
+  tpALifeHumanAbstract->children.clear();
+
+  std::sort(tpALifeTrader->children.begin(), tpALifeTrader->children.end());
+
+  // 2. buy back: the items the customer receives are moved from the trader
+  for (ALife::ITEM_P_VECTOR::const_iterator R = plan.customer_receives.begin();
+       R != plan.customer_receives.end(); ++R)
+  {
+    ALife::OBJECT_IT J = std::lower_bound(tpALifeTrader->children.begin(),
+                                          tpALifeTrader->children.end(),
+                                          (*R)->base()->ID);
+    R_ASSERT((tpALifeTrader->children.end() != J) && (*J == (*R)->base()->ID));
+    tpALifeTrader->children.erase(J);
+    tpALifeHumanAbstract->attach(*R, true, true);
+  }
+
+  // 3. money
+  tpALifeTrader->m_dwMoney += plan.money_customer_start - plan.money_customer_end;
+  tpALifeHumanAbstract->m_dwMoney = plan.money_customer_end;
+
+  R_ASSERT2(int(tpALifeTrader->m_dwMoney) >= 0,
+            "Trader must have enough money to pay for the artefacts!");
+
+  // 4. return the PDA
+  if (plan.original_pda)
+  {
+    ALife::OBJECT_IT I = std::find(tpALifeTrader->children.begin(),
+                                   tpALifeTrader->children.end(),
+                                   plan.original_pda->ID);
+    VERIFY(I != tpALifeTrader->children.end());
+    smart_cast<CSE_ALifeDynamicObject *>(tpALifeTrader->base())->detach(plan.original_pda);
+    tpALifeHumanAbstract->attach(plan.original_pda, true);
+  }
+
+#if defined(DEBUG) || defined(DEBUG_ALIFE)
+  if (ALIFE_LOG_ON)
+    Msg("V2.2 apply_trade: customer=%s trader=%s gives=%d receives=%d money=%u",
+        tpALifeHumanAbstract->name_replace(), tpALifeTrader->name_replace(),
+        int(plan.customer_gives.size()), int(plan.customer_receives.size()),
+        plan.money_customer_end);
+#endif
+}
+
 // Stage 4.6: live trade checks (2003 logic, adapted to the 2005 API).
 // 2003 called brain().objects().can_take_item(0) (int overload, capacity
 // check without a concrete item); the 2005 handler only has

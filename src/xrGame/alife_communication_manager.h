@@ -14,6 +14,27 @@ class CSE_ALifeSchedulable;
 class CSE_ALifeHumanAbstract;
 class CSE_ALifeTrader;
 class CSE_ALifeTraderAbstract;
+class CSE_ALifeItemPDA;
+
+// V2.2 - pure trade plan: what each side gives/receives and the money delta.
+// Computed by compute_trade() without touching inventories; applied by
+// apply_trade() at the moment the hand-over animation plays.
+struct STradePlan
+{
+    ALife::ITEM_P_VECTOR customer_gives;   // items the customer hands to the trader (sold)
+    ALife::ITEM_P_VECTOR customer_receives; // items the trader hands to the customer (bought back)
+    u32 money_customer_end;
+    u32 money_customer_start;
+    CSE_ALifeItemPDA* original_pda;
+    void clear()
+    {
+        customer_gives.clear();
+        customer_receives.clear();
+        money_customer_end = 0;
+        money_customer_start = 0;
+        original_pda = 0;
+    }
+};
 
 // #pragma todo("Dima to Dima : Be attentive with this speed optimization - it
 // doesn't suit to the OOP paradigm!")
@@ -205,4 +226,9 @@ public:
   // Stage 4.8: live (2003 logic, adapted to the 2005 API)
   void communicate_with_customer(CSE_ALifeHumanAbstract *tpALifeHumanAbstract,
                                  CSE_ALifeTrader *tpALifeTrader);
+  // V2.2: pure trade plan computation and application (split of communicate_with_customer)
+  void compute_trade(CSE_ALifeHumanAbstract *tpALifeHumanAbstract,
+                     CSE_ALifeTrader *tpALifeTrader, STradePlan &plan);
+  void apply_trade(CSE_ALifeHumanAbstract *tpALifeHumanAbstract,
+                   CSE_ALifeTrader *tpALifeTrader, const STradePlan &plan);
 };

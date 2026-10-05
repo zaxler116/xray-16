@@ -520,6 +520,7 @@ void CStalkerActionTradeWithTrader::execute()
     switch (m_trade_phase)
     {
     case eTradePhaseCompute:
+    {
         m_trade_time = Device.dwTimeGlobal;
         m_phase_start_time = Device.dwTimeGlobal;
 
@@ -529,96 +530,56 @@ void CStalkerActionTradeWithTrader::execute()
         // 2. snapshot what the NPC will give (client-owned children, by type)
         compute_trade_plan();
 
-        // 3. run the trade and diff the human's children: new ones = received by the NPC
+        // 3. V2.2: pure computation of the trade plan (no inventory changes yet),
+        //    then build the per-participant animation lists from the plan.
+        STradePlan trade_plan;
+        const_cast<CALifeSimulator&>(ai().alife()).compute_trade(m_alife_human, m_alife_trader, trade_plan);
+
+        // what the NPC receives (and the trader gives): dedup by item type
+        for (ALife::ITEM_P_VECTOR::const_iterator R = trade_plan.customer_receives.begin();
+             R != trade_plan.customer_receives.end(); ++R)
         {
-            ALife::OBJECT_VECTOR pre_trade;
-            ALife::OBJECT_IT I = m_alife_human->children.begin();
-            ALife::OBJECT_IT E = m_alife_human->children.end();
-            for (; I != E; ++I)
-                pre_trade.push_back(*I);
-
-            // the trade itself (recurses into the group, if this stalker is in one)
-            const_cast<CALifeSimulator&>(ai().alife()).communicate_with_customer(m_alife_human, m_alife_trader);
-
-            // diff: new children = received by the NPC, given by the trader
+            CGameObject* go = smart_cast<CGameObject*>((*R)->base());
+            if (!go)
+                continue;
+            CInventoryItem* inv = smart_cast<CInventoryItem*>(go);
+            if (!inv)
+                continue;
+            bool found = false;
+            for (TRADE_ANIM_ITEMS::iterator K = m_receive_items_p1.begin(); K != m_receive_items_p1.end(); ++K)
             {
-                ALife::OBJECT_IT I2 = m_alife_human->children.begin();
-                ALife::OBJECT_IT E2 = m_alife_human->children.end();
-                for (; I2 != E2; ++I2)
+                if (K->m_section == inv->m_section_id)
                 {
-                    bool pre = false;
-                    for (ALife::OBJECT_VECTOR::iterator K = pre_trade.begin(); K != pre_trade.end(); ++K)
-                        if (*K == *I2)
-                        {
-                            pre = true;
-                            break;
-                        }
-                    if (pre)
-                        continue;
-                    CSE_ALifeInventoryItem* item =
-                        smart_cast<CSE_ALifeInventoryItem*>(ai().alife().objects().object(*I2));
-                    if (!item)
-                        continue;
-                    CGameObject* go = smart_cast<CGameObject*>(ai().alife().objects().object(*I2));
-                    if (!go)
-                        continue;
-                    CInventoryItem* inv = smart_cast<CInventoryItem*>(go);
-                    if (!inv)
-                        continue;
-                    // NPC receives it
-                    bool found = false;
-                    for (TRADE_ANIM_ITEMS::iterator K2 = m_receive_items_p1.begin(); K2 != m_receive_items_p1.end(); ++K2)
-                    {
-                        if (K2->m_section == inv->m_section_id)
-                        {
-                            found = true;
-                            break;
-                        }
-                    }
-                    if (!found)
-                    {
-                        STradeAnimItem entry;
-                        entry.m_go = go;
-                        entry.m_section = inv->m_section_id;
-                        m_receive_items_p1.push_back(entry);
-                    }
-                    // trader gives it
-                    found = false;
-                    for (TRADE_ANIM_ITEMS::iterator K2 = m_give_items_p2.begin(); K2 != m_give_items_p2.end(); ++K2)
-                    {
-                        if (K2->m_section == inv->m_section_id)
-                        {
-                            found = true;
-                            break;
-                        }
-                    }
-                    if (!found)
-                    {
-                        STradeAnimItem entry;
-                        entry.m_go = go;
-                        entry.m_section = inv->m_section_id;
-                        m_give_items_p2.push_back(entry);
-                    }
+                    found = true;
+                    break;
                 }
             }
-            while (int(m_receive_items_p1.size()) > m_max_animation_items)
-                m_receive_items_p1.resize(m_max_animation_items);
-            while (int(m_give_items_p2.size()) > m_max_animation_items)
-                m_give_items_p2.resize(m_max_animation_items);
+            if (found)
+                continue;
+            STradeAnimItem entry;
+            entry.m_go = go;
+            entry.m_section = inv->m_section_id;
+            m_receive_items_p1.push_back(entry);
+            m_give_items_p2.push_back(entry);
         }
+        while (int(m_receive_items_p1.size()) > m_max_animation_items)
+            m_receive_items_p1.resize(m_max_animation_items);
+        while (int(m_give_items_p2.size()) > m_max_animation_items)
+            m_give_items_p2.resize(m_max_animation_items);
 
         // 4. what the trader receives = what the NPC gave (same item types)
+        for (TRADE_ANIM_ITEMS::iterator K = m_give_items_p1.begin(); K != m_give_items_p1.end(); ++K)
         {
-            for (TRADE_ANIM_ITEMS::iterator K = m_give_items_p1.begin(); K != m_give_items_p1.end(); ++K)
-            {
-                STradeAnimItem entry;
-                entry.m_go = K->m_go;
-                entry.m_section = K->m_section;
-                m_receive_items_p2.push_back(entry);
-            }
-            while (int(m_receive_items_p2.size()) > m_max_animation_items)
-                m_receive_items_p2.resize(m_max_animation_items);
+            STradeAnimItem entry;
+            entry.m_go = K->m_go;
+            entry.m_section = K->m_section;
+            m_receive_items_p2.push_back(entry);
         }
+        while (int(m_receive_items_p2.size()) > m_max_animation_items)
+            m_receive_items_p2.resize(m_max_animation_items);
+
+        // 5. apply the plan to the ALife inventories
+        const_cast<CALifeSimulator&>(ai().alife()).apply_trade(m_alife_human, m_alife_trader, trade_plan);
 
         m_animation_item_index = 0;
         if (int(m_give_items_p1.size()) > 0)
@@ -630,6 +591,7 @@ void CStalkerActionTradeWithTrader::execute()
         else
             m_trade_phase = eTradePhaseMirrorBack;
         return;
+    }
 
     case eTradePhaseGiveItemsP1:
     case eTradePhaseReceiveItemsP1:
