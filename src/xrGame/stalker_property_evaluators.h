@@ -289,6 +289,26 @@ public:
 };
 
 //////////////////////////////////////////////////////////////////////////
+// CStalkerPropertyEvaluatorTradeWithTrader
+//////////////////////////////////////////////////////////////////////////
+
+class CStalkerPropertyEvaluatorTradeWithTrader : public CStalkerPropertyEvaluator
+{
+protected:
+    typedef CStalkerPropertyEvaluator inherited;
+
+    float m_distance;
+    float m_distance_sqr;
+    u32 m_last_trade_time;
+    const CEntity* m_trader_target;
+
+public:
+    CStalkerPropertyEvaluatorTradeWithTrader(CAI_Stalker* object = 0, LPCSTR evaluator_name = "");
+    virtual _value_type evaluate();
+    const CEntity* trader_target() const { return m_trader_target; }
+};
+
+//////////////////////////////////////////////////////////////////////////
 // CStalkerPropertyEvaluatorEnemyReached
 //////////////////////////////////////////////////////////////////////////
 

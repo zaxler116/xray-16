@@ -8,6 +8,7 @@
 
 #include "pch_script.h"
 #include "stalker_property_evaluators.h"
+#include <cstring>
 #include "ai/stalker/ai_stalker.h"
 #include "stalker_decision_space.h"
 #include "script_game_object.h"
@@ -387,6 +388,83 @@ _value_type CStalkerPropertyEvaluatorSquadGreeting::evaluate()
     }
 
     m_last_greeting_target = best;
+    return (best != 0);
+}
+
+//////////////////////////////////////////////////////////////////////////
+// CStalkerPropertyEvaluatorTradeWithTrader
+//////////////////////////////////////////////////////////////////////////
+
+CStalkerPropertyEvaluatorTradeWithTrader::CStalkerPropertyEvaluatorTradeWithTrader(
+    CAI_Stalker* object, LPCSTR evaluator_name)
+    : inherited(object ? object->lua_game_object() : 0, evaluator_name),
+      m_distance(30.f), m_distance_sqr(30.f * 30.f), m_last_trade_time(0), m_trader_target(0)
+{
+}
+
+_value_type CStalkerPropertyEvaluatorTradeWithTrader::evaluate()
+{
+    if (!ai().get_alife())
+        return (false);
+
+    // cooldown: one trade per 5 minutes per NPC
+    if (Device.dwTimeGlobal < m_last_trade_time + 300000)
+        return (false);
+
+    // there must be something to trade: money or at least one sellable item
+    if (m_object->get_money() <= 0)
+    {
+        bool has_item = false;
+        u32 count = m_object->inventory().dwfGetObjectCount();
+        for (u32 i = 0; i < count; ++i)
+        {
+            CInventoryItem* item = m_object->inventory().tpfGetObjectByIndex(int(i));
+            if (!item)
+                continue;
+            LPCSTR section = item->m_section_id.c_str();
+            if (!section)
+                continue;
+            if (_strnicmp(section, "wpn_", 4) == 0 ||
+                _strnicmp(section, "ammo_", 5) == 0 ||
+                _strnicmp(section, "food_", 5) == 0 ||
+                _strnicmp(section, "medkit_", 7) == 0 ||
+                _strnicmp(section, "st_", 3) == 0 ||
+                _strnicmp(section, "ar_", 3) == 0)
+            {
+                has_item = true;
+                break;
+            }
+        }
+        if (!has_item)
+            return (false);
+    }
+
+    const CVisualMemoryManager::RAW_VISIBLES& visibles = m_object->memory().visual().raw_objects();
+    const CEntity* best = 0;
+    float best_distance_sqr = m_distance_sqr;
+
+    for (CVisualMemoryManager::RAW_VISIBLES::const_iterator i = visibles.begin(); i != visibles.end(); ++i)
+    {
+        const CEntity* e = smart_cast<const CEntity*>(*i);
+        if (!e || !e->g_Alive())
+            continue;
+        if (e->ID() == m_object->ID())
+            continue;
+
+        // only ALife trader objects
+        CSE_ALifeTrader* trader = smart_cast<CSE_ALifeTrader*>(ai().alife().objects().object(e->ID()));
+        if (!trader)
+            continue;
+
+        float dist_sqr = m_object->Position().distance_to_sqr(e->Position());
+        if (dist_sqr > best_distance_sqr)
+            continue;
+
+        best = e;
+        best_distance_sqr = dist_sqr;
+    }
+
+    m_trader_target = best;
     return (best != 0);
 }
 
