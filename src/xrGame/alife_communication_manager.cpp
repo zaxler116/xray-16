@@ -464,6 +464,15 @@ void CALifeCommunicationManager::vfPerformTrading(
 
 #if defined(DEBUG) || defined(DEBUG_ALIFE)
   if (ALIFE_LOG_ON)
+    Msg("N.4 trade pool: %s offers %d of %d, %s offers %d of %d children",
+        tpALifeHumanAbstract1->name_replace(), (int)m_tpItems1.size(),
+        (int)tpALifeHumanAbstract1->children.size(),
+        tpALifeHumanAbstract2->name_replace(), (int)m_tpItems2.size(),
+        (int)tpALifeHumanAbstract2->children.size());
+#endif
+
+#if defined(DEBUG) || defined(DEBUG_ALIFE)
+  if (ALIFE_LOG_ON)
   {
     vfPrintItems(tpALifeHumanAbstract1, m_tpItems1);
     vfPrintItems(tpALifeHumanAbstract2, m_tpItems2);
@@ -763,6 +772,7 @@ void CALifeCommunicationManager::communicate_with_customer(
 #endif
   CSE_ALifeItemPDA *original_pda = 0;
   tpALifeHumanAbstract->brain().m_dwTotalMoney = tpALifeHumanAbstract->m_dwMoney;
+  int l_iKeptItems = 0; // N.6: how many children stay with the human
   {
     ALife::OBJECT_IT I = tpALifeHumanAbstract->children.begin();
     ALife::OBJECT_IT E = tpALifeHumanAbstract->children.end();
@@ -783,6 +793,7 @@ void CALifeCommunicationManager::communicate_with_customer(
       // minimum stock (food for m_food_keep_days, single medikit) stay.
       if (!tpALifeHumanAbstract->brain().objects().item_is_keepable(l_tpALifeInventoryItem, tpALifeHumanAbstract))
         continue;
+      ++l_iKeptItems;
       tpALifeHumanAbstract->detach(l_tpALifeInventoryItem, 0, true, false);
       smart_cast<CSE_ALifeDynamicObject *>(tpALifeTrader->base())
           ->attach(l_tpALifeInventoryItem, true);
@@ -861,6 +872,13 @@ void CALifeCommunicationManager::communicate_with_customer(
     smart_cast<CSE_ALifeDynamicObject *>(tpALifeTrader->base())->detach(original_pda);
     tpALifeHumanAbstract->attach(original_pda, true);
   }
+
+#if defined(DEBUG) || defined(DEBUG_ALIFE)
+  if (ALIFE_LOG_ON)
+    Msg("N.6 trade with trader %s: %d items sold, %d kept (personal/minimum stock)",
+        tpALifeTrader->name_replace(), l_iKeptItems,
+        (int)tpALifeHumanAbstract->children.size() - l_iKeptItems);
+#endif
 }
 
 // V2.2 - compute_trade: pure computation of the trade plan.
