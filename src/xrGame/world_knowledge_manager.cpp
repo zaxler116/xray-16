@@ -103,6 +103,37 @@ void CWorldKnowledgeManager::add_creature_seen(const CEntityAlive* creature, con
         m_points.erase(m_points.begin());
 }
 
+int CWorldKnowledgeManager::enemies_near(const Fvector& position, float radius) const
+{
+    int count = 0;
+    float radius_sq = radius * radius;
+    for (const SWorldKnowledgePoint& p : m_points)
+    {
+        if (p.relation_for_me != ALife::eRelationTypeEnemy && p.relation_for_me != ALife::eRelationTypeWorstEnemy &&
+            p.relation_to_me != ALife::eRelationTypeEnemy && p.relation_to_me != ALife::eRelationTypeWorstEnemy)
+            continue;
+        if (p.position.distance_to_sqr(position) <= radius_sq)
+            ++count;
+    }
+    return count;
+}
+
+ALife::ERelationType CWorldKnowledgeManager::worst_relation_near(const Fvector& position, float radius) const
+{
+    ALife::ERelationType worst = ALife::eRelationTypeFriend;
+    float radius_sq = radius * radius;
+    for (const SWorldKnowledgePoint& p : m_points)
+    {
+        if (p.position.distance_to_sqr(position) > radius_sq)
+            continue;
+        ALife::ERelationType rel =
+            (u8)p.relation_for_me >= (u8)p.relation_to_me ? p.relation_for_me : p.relation_to_me;
+        if ((u8)rel > (u8)worst)
+            worst = rel;
+    }
+    return worst;
+}
+
 void CWorldKnowledgeManager::save(NET_Packet& packet) const
 {
     u16 count = (u16)m_points.size();

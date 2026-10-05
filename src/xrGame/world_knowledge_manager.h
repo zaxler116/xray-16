@@ -53,6 +53,12 @@ public:
     IC const POINTS& points() const { return (m_points); }
     void save(NET_Packet& packet) const;
     void load(IReader& packet);
+
+    // V1.1: aggregate remembered creatures near a point.
+    // counts only points whose relation (either direction) is Enemy/WorstEnemy;
+    // worst_relation is the worst of the relations seen among them.
+    int enemies_near(const Fvector& position, float radius) const;
+    ALife::ERelationType worst_relation_near(const Fvector& position, float radius) const;
     IC u32 ttl_ms() const { return (m_ttl_ms); }
     IC u32 max_points() const { return (m_max_points); }
     IC const CCustomMonster* object() const { return (m_object); }
