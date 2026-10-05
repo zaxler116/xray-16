@@ -65,36 +65,35 @@ void CSE_ALifeTraderAbstract::spawn_supplies() {
 }
 
 void CSE_ALifeTraderAbstract::vfInitInventory() {
-  // cumulative mass/volume fields are not maintained in the 2005 ALife
-  // (see CSE_ALifeTraderAbstract in xrServer_Objects_ALife_Monsters.h),
-  // so there is nothing to initialize here.
+  // Stage 4.9: 2003 logic - reset cumulative mass/volume to zero.
+  // Called before re-attaching items (vfRestoreItems, vfAttachGatheredItems).
+  m_fCumulativeItemMass = 0.f;
+  m_iCumulativeItemVolume = 0;
 }
 
 #ifdef DEBUG
 bool CSE_ALifeTraderAbstract::check_inventory_consistency() {
-  // Sanity check used by CALifeCommunicationManager (vfPerformCommunication)
-  // to verify that the trader's inventory is consistent after a deal.
-  // The 2005 code does not maintain m_fCumulativeItemMass /
-  // m_iCumulativeItemVolume, so this always returns true (the old R_ASSERT
-  // checks are gone).
-  int volume = 0;
+  // Stage 4.9: 2003 logic - verify that m_fCumulativeItemMass matches the
+  // sum of m_fMass over all children. The volume check is dropped because
+  // 2005 CSE_ALifeInventoryItem has no m_iVolume field.
   float mass = 0.f;
   for (auto it = base()->children.begin(); it != base()->children.end(); ++it) {
     CSE_ALifeDynamicObject *object = ai().alife().objects().object(*it, true);
     if (!object)
       continue;
-
     CSE_ALifeInventoryItem *item = smart_cast<CSE_ALifeInventoryItem *>(object);
     if (!item)
       continue;
-
-    volume += item->m_iVolume;
     mass += item->m_fMass;
   }
 
+  R_ASSERT2(m_fCumulativeItemMass < EPS_L ||
+                xr_fabs(m_fCumulativeItemMass - mass) < 0.01f,
+            "Cumulative item mass mismatch");
+
   if (psAI_Flags.test(aiALife))
-    Msg("[LSS] [%s] inventory is consistent [%f][%d]", base()->name_replace(),
-        mass, volume);
+    Msg("[LSS] [%s] inventory consistent: mass=%.3f (computed=%.3f)",
+        base()->name_replace(), m_fCumulativeItemMass, mass);
 
   return true;
 }

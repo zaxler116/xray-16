@@ -467,7 +467,30 @@ void CALifeHumanObjectHandler::choose_group(CSE_ALifeGroupAbstract* group_abstra
     l_tpALifeHumanAbstract->brain().objects().attach_items_pick(ALife::eTakeTypeRest);
   }
 }
-void CALifeHumanObjectHandler::detach_all(bool fictitious) {}
+// Stage 4.9: 2003 vfDetachAll logic (save L264-279).
+// Detaches all children one by one (so graph().detach can re-add each item
+// to the graph level), then resets the cumulative mass/volume fields.
+void CALifeHumanObjectHandler::detach_all(bool fictitious) {
+  object_type& object = *m_object;
+  CALifeSimulator& simulator = const_cast<CALifeSimulator&>(ai().alife());
+  while (!object.children.empty()) {
+    CSE_ALifeInventoryItem* item = smart_cast<CSE_ALifeInventoryItem*>(
+        ai().alife().objects().object(object.children.front()));
+    R_ASSERT2(item, "Invalid inventory object");
+    if (!fictitious) {
+      simulator.graph().detach(*object.base(), item, object.m_tGraphID,
+                               true, true);
+    } else {
+      ALife::OBJECT_IT I = object.children.begin();
+      object.detach(item, &I, true, true);
+    }
+  }
+  R_ASSERT2((object.m_fCumulativeItemMass < EPS_L) &&
+                !object.m_iCumulativeItemVolume,
+            "Invalid cumulative item mass or volume value");
+  object.m_fCumulativeItemMass = 0.f;
+  object.m_iCumulativeItemVolume = 0;
+}
 // Stage 2.2: after combat, trim the ammo of the current best weapon (2003
 // vfUpdateWeaponAmmo, save L136-169). Slot 0/3 (no external ammo) kept.
 void CALifeHumanObjectHandler::update_weapon_ammo() {
