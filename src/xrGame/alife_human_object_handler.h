@@ -55,6 +55,19 @@ public:
     void attach_items();
     // Stage 3.6: Min/Rest pick-up order, shared by attach_items() and choose_group()
     void attach_items_pick(ALife::ETakeType tTakeType);
+
+    // N.2: trade "need" core. Decides how many items of a given type the
+    // owner must keep (food stock, single medikit, primary weapon + ammo
+    // reserve, equipment) and whether a particular item is personal /
+    // keepable (i.e. must NOT be sold).
+    int  item_keep_count(CSE_ALifeInventoryItem* item, CSE_ALifeHumanAbstract* owner) const;
+    int  item_current_count(CSE_ALifeInventoryItem* item, CSE_ALifeHumanAbstract* owner) const;
+    bool item_is_personal(CSE_ALifeInventoryItem* item, CSE_ALifeHumanAbstract* owner) const;
+    bool item_is_keepable(CSE_ALifeInventoryItem* item, CSE_ALifeHumanAbstract* owner) const;
+
+    // N.2: trade tuning (defaults; N.5 will load them from a config section)
+    float m_food_keep_days;     // game days of food to keep
+    float m_ammo_keep_factor;   // extra ammo boxes to keep for the primary weapon
 };
 
 #include "alife_human_object_handler_inline.h"

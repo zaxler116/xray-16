@@ -20,6 +20,10 @@
 #include "ef_primary.h"
 #include "ef_pattern.h"
 
+// N.2: trade "need" core (see item_keep_count / item_is_keepable below)
+#include <cmath>
+#include "xrServer_Objects_ALife_Items.h"
+
 // CRemoveAttachedItemsPredicate now lives in alife_communication_space.h
 // (shared with the communication manager, Stage 4.7).
 
@@ -689,4 +693,130 @@ void CALifeHumanObjectHandler::attach_items()
   }
 
   attach_items_pick(tTakeType);
+}
+
+//////////////////////////////////////////////////////////////////////////
+// N.2: trade "need" core
+//////////////////////////////////////////////////////////////////////////
+
+// How many items of this type the owner must keep.
+//  - food:        ceil(m_iFoodValue * m_food_keep_days)  (>=1 if it is food)
+//  - medikit:     1 (if it heals)
+//  - ammo:        0 here; the primary-weapon reserve is handled in item_is_personal
+//  - weapon:      1 if it is the owner's current best primary weapon
+//  - equipment:   1 (outfits / helmets / vests are personal)
+//  - other:       0
+int CALifeHumanObjectHandler::item_keep_count(
+    CSE_ALifeInventoryItem* item, CSE_ALifeHumanAbstract* owner) const
+{
+    if (!item || !owner)
+        return 0;
+
+    // food stock
+    if (item->m_iFoodValue > 0)
+    {
+        float days = m_food_keep_days > 0.f ? m_food_keep_days : 1.f;
+        int keep = (int)std::ceil(float(item->m_iFoodValue) * days);
+        return keep > 0 ? keep : 1;
+    }
+
+    // single medikit
+    if (item->m_iHealthValue > 0)
+        return 1;
+
+    // equipment (outfit / helmet / vest) is personal
+    CSE_ALifeItemCustomOutfit* outfit = smart_cast<CSE_ALifeItemCustomOutfit*>(item);
+    if (outfit)
+        return 1;
+
+    // the owner's current best primary weapon
+    CSE_ALifeItemWeapon* wpn = smart_cast<CSE_ALifeItemWeapon*>(item);
+    if (wpn)
+    {
+        ALife::EHitType tHitType;
+        float fHitPower;
+        CSE_ALifeItemWeapon* best = owner->tpfGetBestWeapon(tHitType, fHitPower);
+        if (best && best->base()->ID == item->base()->ID)
+            return 1;
+    }
+
+    return 0;
+}
+
+// How many items of the same section the owner currently carries.
+int CALifeHumanObjectHandler::item_current_count(
+    CSE_ALifeInventoryItem* item, CSE_ALifeHumanAbstract* owner) const
+{
+    if (!item || !owner)
+        return 0;
+
+    CGameObject* base = smart_cast<CGameObject*>(item->base());
+    if (!base)
+        return 0;
+
+    u32 id = base->ID();
+    int count = 0;
+    ALife::OBJECT_VECTOR::const_iterator I = owner->children.begin();
+    ALife::OBJECT_VECTOR::const_iterator E = owner->children.end();
+    for (; I != E; ++I)
+    {
+        CSE_ALifeInventoryItem* other =
+            smart_cast<CSE_ALifeInventoryItem*>(ai().alife().objects().object(*I));
+        if (!other)
+            continue;
+        CGameObject* other_base = smart_cast<CGameObject*>(other->base());
+        if (other_base && other_base->ID() == id)
+            ++count;
+    }
+    return count;
+}
+
+// Is this item personal (must never be sold)?
+//  - the owner's own PDA
+//  - equipment (outfit / helmet / vest)
+//  - the owner's current best primary weapon
+bool CALifeHumanObjectHandler::item_is_personal(
+    CSE_ALifeInventoryItem* item, CSE_ALifeHumanAbstract* owner) const
+{
+    if (!item || !owner)
+        return false;
+
+    // own PDA
+    CSE_ALifeItemPDA* pda = smart_cast<CSE_ALifeItemPDA*>(item);
+    if (pda && pda->m_original_owner == owner->ID)
+        return true;
+
+    // equipment
+    CSE_ALifeItemCustomOutfit* outfit = smart_cast<CSE_ALifeItemCustomOutfit*>(item);
+    if (outfit)
+        return true;
+
+    // current best primary weapon
+    CSE_ALifeItemWeapon* wpn = smart_cast<CSE_ALifeItemWeapon*>(item);
+    if (wpn)
+    {
+        ALife::EHitType tHitType;
+        float fHitPower;
+        CSE_ALifeItemWeapon* best = owner->tpfGetBestWeapon(tHitType, fHitPower);
+        if (best && best->base()->ID == item->base()->ID)
+            return true;
+    }
+
+    return false;
+}
+
+// May this item be sold? (i.e. it is NOT personal and the owner already
+// carries more than the required minimum of this type)
+bool CALifeHumanObjectHandler::item_is_keepable(
+    CSE_ALifeInventoryItem* item, CSE_ALifeHumanAbstract* owner) const
+{
+    if (!item || !owner)
+        return false;
+
+    if (item_is_personal(item, owner))
+        return false;
+
+    int keep = item_keep_count(item, owner);
+    int have = item_current_count(item, owner);
+    return have > keep;
 }
