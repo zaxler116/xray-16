@@ -437,7 +437,7 @@ void CStalkerActionTradeWithTrader::compute_trade_plan()
                 continue;
             // dedup by section (same item type = one hand-over animation)
             bool found = false;
-            for (TRADE_ANIM_ITEMS::iterator K = m_give_items.begin(); K != m_give_items.end(); ++K)
+            for (TRADE_ANIM_ITEMS::iterator K = m_give_items_p1.begin(); K != m_give_items_p1.end(); ++K)
             {
                 if (K->m_section == inv->m_section_id)
                 {
@@ -450,12 +450,15 @@ void CStalkerActionTradeWithTrader::compute_trade_plan()
             STradeAnimItem entry;
             entry.m_go = go;
             entry.m_section = inv->m_section_id;
-            m_give_items.push_back(entry);
+            m_give_items_p1.push_back(entry);
         }
     }
     // cap: max N distinct item types per participant
-    while (int(m_give_items.size()) > m_max_animation_items)
-        m_give_items.resize(m_max_animation_items);
+    while (int(m_give_items_p1.size()) > m_max_animation_items)
+        m_give_items_p1.resize(m_max_animation_items);
+
+    // V2.1 - the trader's side (what it gives / receives) is filled in execute()
+    // after communicate_with_customer, from the diff of the human's children.
 }
 
 void CStalkerActionTradeWithTrader::apply_trade_item(int index, bool giving)
@@ -504,9 +507,13 @@ void CStalkerActionTradeWithTrader::execute()
     object().movement().set_mental_state(eMentalStateFree);
     object().sight().setup(CSightAction(SightManager::eSightTypeObject, smart_cast<const CGameObject*>(m_trader_target), true));
 
-    // trade state machine:
+    // V2.1 - trade state machine:
     //  Approach -> Compute (mirror in + plan + communicate) ->
-    //  GiveItems (hand-over animations) -> ReceiveItems -> MirrorBack -> Done
+    //  GiveItemsP1 (NPC hands over what it sells, with animations) ->
+    //  ReceiveItemsP1 (NPC receives what it buys, with animations) ->
+    //  GiveItemsP2 (trader hands over, no animation - timing only) ->
+    //  ReceiveItemsP2 (trader receives, no animation - timing only) ->
+    //  MirrorBack -> Done
     if (!m_trade_time)
         m_trade_phase = eTradePhaseCompute;
 
@@ -514,6 +521,7 @@ void CStalkerActionTradeWithTrader::execute()
     {
     case eTradePhaseCompute:
         m_trade_time = Device.dwTimeGlobal;
+        m_phase_start_time = Device.dwTimeGlobal;
 
         // 1. mirror the client inventory onto the ALife human (so the trade has real data)
         mirror_client_to_alife();
@@ -521,7 +529,7 @@ void CStalkerActionTradeWithTrader::execute()
         // 2. snapshot what the NPC will give (client-owned children, by type)
         compute_trade_plan();
 
-        // 3. run the trade and diff the human's children: new ones = received items
+        // 3. run the trade and diff the human's children: new ones = received by the NPC
         {
             ALife::OBJECT_VECTOR pre_trade;
             ALife::OBJECT_IT I = m_alife_human->children.begin();
@@ -532,7 +540,7 @@ void CStalkerActionTradeWithTrader::execute()
             // the trade itself (recurses into the group, if this stalker is in one)
             const_cast<CALifeSimulator&>(ai().alife()).communicate_with_customer(m_alife_human, m_alife_trader);
 
-            // diff: new children = received items
+            // diff: new children = received by the NPC, given by the trader
             {
                 ALife::OBJECT_IT I2 = m_alife_human->children.begin();
                 ALife::OBJECT_IT E2 = m_alife_human->children.end();
@@ -557,8 +565,9 @@ void CStalkerActionTradeWithTrader::execute()
                     CInventoryItem* inv = smart_cast<CInventoryItem*>(go);
                     if (!inv)
                         continue;
+                    // NPC receives it
                     bool found = false;
-                    for (TRADE_ANIM_ITEMS::iterator K2 = m_receive_items.begin(); K2 != m_receive_items.end(); ++K2)
+                    for (TRADE_ANIM_ITEMS::iterator K2 = m_receive_items_p1.begin(); K2 != m_receive_items_p1.end(); ++K2)
                     {
                         if (K2->m_section == inv->m_section_id)
                         {
@@ -566,40 +575,80 @@ void CStalkerActionTradeWithTrader::execute()
                             break;
                         }
                     }
-                    if (found)
-                        continue;
-                    STradeAnimItem entry;
-                    entry.m_go = go;
-                    entry.m_section = inv->m_section_id;
-                    m_receive_items.push_back(entry);
+                    if (!found)
+                    {
+                        STradeAnimItem entry;
+                        entry.m_go = go;
+                        entry.m_section = inv->m_section_id;
+                        m_receive_items_p1.push_back(entry);
+                    }
+                    // trader gives it
+                    found = false;
+                    for (TRADE_ANIM_ITEMS::iterator K2 = m_give_items_p2.begin(); K2 != m_give_items_p2.end(); ++K2)
+                    {
+                        if (K2->m_section == inv->m_section_id)
+                        {
+                            found = true;
+                            break;
+                        }
+                    }
+                    if (!found)
+                    {
+                        STradeAnimItem entry;
+                        entry.m_go = go;
+                        entry.m_section = inv->m_section_id;
+                        m_give_items_p2.push_back(entry);
+                    }
                 }
             }
-            while (int(m_receive_items.size()) > m_max_animation_items)
-                m_receive_items.resize(m_max_animation_items);
+            while (int(m_receive_items_p1.size()) > m_max_animation_items)
+                m_receive_items_p1.resize(m_max_animation_items);
+            while (int(m_give_items_p2.size()) > m_max_animation_items)
+                m_give_items_p2.resize(m_max_animation_items);
+        }
+
+        // 4. what the trader receives = what the NPC gave (same item types)
+        {
+            for (TRADE_ANIM_ITEMS::iterator K = m_give_items_p1.begin(); K != m_give_items_p1.end(); ++K)
+            {
+                STradeAnimItem entry;
+                entry.m_go = K->m_go;
+                entry.m_section = K->m_section;
+                m_receive_items_p2.push_back(entry);
+            }
+            while (int(m_receive_items_p2.size()) > m_max_animation_items)
+                m_receive_items_p2.resize(m_max_animation_items);
         }
 
         m_animation_item_index = 0;
-        if (int(m_give_items.size()) > 0)
-            m_trade_phase = eTradePhaseGiveItems;
-        else if (int(m_receive_items.size()) > 0)
-            m_trade_phase = eTradePhaseReceiveItems;
+        if (int(m_give_items_p1.size()) > 0)
+            m_trade_phase = eTradePhaseGiveItemsP1;
+        else if (int(m_receive_items_p1.size()) > 0)
+            m_trade_phase = eTradePhaseReceiveItemsP1;
+        else if (int(m_give_items_p2.size()) > 0)
+            m_trade_phase = eTradePhaseGiveItemsP2;
         else
             m_trade_phase = eTradePhaseMirrorBack;
         return;
 
-    case eTradePhaseGiveItems:
-    case eTradePhaseReceiveItems:
+    case eTradePhaseGiveItemsP1:
+    case eTradePhaseReceiveItemsP1:
     {
-        // hard cap: 60 seconds max for all animations
-        if (m_trade_time && Device.dwTimeGlobal - m_trade_time > 60000)
+        // NPC's phases: play the hand-over animation, timed by m_animation_duration_ms
+        // hard cap: timeout per phase
+        if (m_trade_time && Device.dwTimeGlobal - m_phase_start_time > m_phase_timeout_ms)
         {
             finish_hand_over_animation();
-            m_trade_phase = eTradePhaseMirrorBack;
+            m_animation_item_index = 0;
+            if (m_trade_phase == eTradePhaseGiveItemsP1)
+                m_trade_phase = eTradePhaseReceiveItemsP1;
+            else
+                m_trade_phase = eTradePhaseGiveItemsP2;
+            m_phase_start_time = Device.dwTimeGlobal;
             return;
         }
 
-        const TRADE_ANIM_ITEMS& list =
-            (m_trade_phase == eTradePhaseGiveItems) ? m_give_items : m_receive_items;
+        const TRADE_ANIM_ITEMS& list = current_list();
 
         if (m_current_item_go == 0)
         {
@@ -612,23 +661,39 @@ void CStalkerActionTradeWithTrader::execute()
             else
             {
                 // all animations of this phase done
-                m_trade_phase = (m_trade_phase == eTradePhaseGiveItems && int(m_receive_items.size()) > 0)
-                                    ? eTradePhaseReceiveItems
-                                    : eTradePhaseMirrorBack;
+                on_animation_phase_complete();
                 return;
             }
         }
-        else if (Device.dwTimeGlobal - m_animation_start_time >= m_animation_duration_ms)
+        else if (Device.dwTimeGlobal - m_phase_start_time >= m_animation_duration_ms)
         {
             finish_hand_over_animation();
             ++m_animation_item_index;
             if (m_animation_item_index >= int(list.size()))
-            {
-                m_trade_phase = (m_trade_phase == eTradePhaseGiveItems && int(m_receive_items.size()) > 0)
-                                    ? eTradePhaseReceiveItems
-                                    : eTradePhaseMirrorBack;
-                return;
-            }
+                on_animation_phase_complete();
+        }
+        return;
+    }
+
+    case eTradePhaseGiveItemsP2:
+    case eTradePhaseReceiveItemsP2:
+    {
+        // Trader's phases: no animation (the trader doesn't play the hand-over),
+        // just a short stand so the sequence reads naturally.
+        if (m_trade_time && Device.dwTimeGlobal - m_phase_start_time > m_phase_timeout_ms)
+        {
+            m_trade_phase = (m_trade_phase == eTradePhaseGiveItemsP2) ? eTradePhaseReceiveItemsP2
+                                                                      : eTradePhaseMirrorBack;
+            m_phase_start_time = Device.dwTimeGlobal;
+            return;
+        }
+
+        if (Device.dwTimeGlobal - m_phase_start_time >= m_animation_duration_ms)
+        {
+            m_trade_phase = (m_trade_phase == eTradePhaseGiveItemsP2) ? eTradePhaseReceiveItemsP2
+                                                                      : eTradePhaseMirrorBack;
+            m_phase_start_time = Device.dwTimeGlobal;
+            m_animation_item_index = 0;
         }
         return;
     }
@@ -643,6 +708,46 @@ void CStalkerActionTradeWithTrader::execute()
         // nothing to do; the action stays until the planner finalizes it
         return;
     }
+}
+
+bool CStalkerActionTradeWithTrader::in_animation_phase() const
+{
+    return m_trade_phase == eTradePhaseGiveItemsP1 || m_trade_phase == eTradePhaseReceiveItemsP1;
+}
+
+const CStalkerActionTradeWithTrader::TRADE_ANIM_ITEMS& CStalkerActionTradeWithTrader::current_list() const
+{
+    switch (m_trade_phase)
+    {
+    case eTradePhaseGiveItemsP1:
+        return m_give_items_p1;
+    case eTradePhaseReceiveItemsP1:
+        return m_receive_items_p1;
+    case eTradePhaseGiveItemsP2:
+        return m_give_items_p2;
+    case eTradePhaseReceiveItemsP2:
+        return m_receive_items_p2;
+    }
+    return m_give_items_p1;
+}
+
+int CStalkerActionTradeWithTrader::current_list_size() const
+{
+    return int(current_list().size());
+}
+
+void CStalkerActionTradeWithTrader::on_animation_phase_complete()
+{
+    // next phase in the V2.1 sequence
+    if (m_trade_phase == eTradePhaseGiveItemsP1)
+        m_trade_phase = (int(m_receive_items_p1.size()) > 0) ? eTradePhaseReceiveItemsP1
+                                                            : (int(m_give_items_p2.size()) > 0 ? eTradePhaseGiveItemsP2
+                                                                                               : eTradePhaseMirrorBack);
+    else // eTradePhaseReceiveItemsP1
+        m_trade_phase = (int(m_give_items_p2.size()) > 0) ? eTradePhaseGiveItemsP2
+                                                         : eTradePhaseMirrorBack;
+    m_phase_start_time = Device.dwTimeGlobal;
+    m_animation_item_index = 0;
 }
 CStalkerActionNoALife::CStalkerActionNoALife(CAI_Stalker* object, LPCSTR action_name) : inherited(object, action_name)
 {
