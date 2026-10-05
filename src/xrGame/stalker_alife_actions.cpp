@@ -207,7 +207,7 @@ void CStalkerActionSquadGreeting::execute()
 CStalkerActionTradeWithTrader::CStalkerActionTradeWithTrader(CAI_Stalker* object, LPCSTR action_name)
     : inherited(object, action_name),
       m_trader_target(0), m_alife_human(0), m_alife_trader(0),
-      m_trade_time(0), m_approach_distance_sqr(2.5f * 2.5f),
+      m_trade_time(0), m_approach_distance_sqr(2.5f * 2.5f), m_computed(false),
       m_trade_phase(eTradePhaseApproach), m_phase_start_time(0),
       m_current_item_go(0), m_animation_item_index(0), m_max_animation_items(5),
       m_hand_over_animation("zat_b14_give_artefact_act"), m_animation_duration_ms(3000),
@@ -220,6 +220,7 @@ void CStalkerActionTradeWithTrader::initialize()
     inherited::initialize();
 
     m_trade_time = 0;
+    m_computed = false; // V4.1
     m_trade_phase = eTradePhaseApproach;
     m_phase_start_time = 0;
     m_current_item_go = 0;
@@ -290,6 +291,13 @@ void CStalkerActionTradeWithTrader::finalize()
 
     object().movement().set_desired_position(0);
     object().sight().setup(SightManager::eSightTypePathDirection);
+
+    // V4.1 - rollback: if the trade was computed but not mirrored back, and the NPC is alive,
+    // mirror the ALife inventory back to the client to avoid data loss.
+    if (m_computed && object().g_Alive() && m_trade_phase != eTradePhaseDone)
+    {
+        mirror_alife_to_client();
+    }
 
     if (!object().g_Alive())
         return;
@@ -580,6 +588,7 @@ void CStalkerActionTradeWithTrader::execute()
 
         // 5. apply the plan to the ALife inventories
         const_cast<CALifeSimulator&>(ai().alife()).apply_trade(m_alife_human, m_alife_trader, trade_plan);
+        m_computed = true; // V4.1
 
         m_animation_item_index = 0;
         if (int(m_give_items_p1.size()) > 0)
@@ -720,7 +729,7 @@ void CStalkerActionTradeWithTrader::on_animation_phase_complete()
 CStalkerActionTradeWithSquad::CStalkerActionTradeWithSquad(CAI_Stalker* object, LPCSTR action_name)
     : inherited(object, action_name),
       m_partner_target(0), m_alife_human(0), m_alife_partner(0),
-      m_trade_time(0), m_approach_distance_sqr(2.5f * 2.5f),
+      m_trade_time(0), m_approach_distance_sqr(2.5f * 2.5f), m_computed(false),
       m_trade_phase(eTradePhaseApproach), m_phase_start_time(0),
       m_current_item_go(0), m_animation_item_index(0), m_max_animation_items(5),
       m_hand_over_animation("zat_b14_give_artefact_act"), m_animation_duration_ms(3000),
@@ -733,6 +742,7 @@ void CStalkerActionTradeWithSquad::initialize()
     inherited::initialize();
 
     m_trade_time = 0;
+    m_computed = false; // V4.1
     m_trade_phase = eTradePhaseApproach;
     m_phase_start_time = 0;
     m_current_item_go = 0;
@@ -810,6 +820,16 @@ void CStalkerActionTradeWithSquad::finalize()
 
     object().movement().set_desired_position(0);
     object().sight().setup(SightManager::eSightTypePathDirection);
+
+    // V4.1 - rollback: if the trade was computed but not mirrored back, and the NPC is alive,
+    // mirror the ALife inventories back to the client to avoid data loss.
+    if (m_computed && object().g_Alive() && m_trade_phase != eTradePhaseDone)
+    {
+        mirror_alife_to_client(&object(), m_alife_human);
+        CAI_Stalker* partner_npc = smart_cast<CAI_Stalker*>(const_cast<CEntity*>(m_partner_target));
+        if (partner_npc)
+            mirror_alife_to_client(partner_npc, m_alife_partner);
+    }
 
     if (!object().g_Alive())
         return;
@@ -1031,6 +1051,7 @@ void CStalkerActionTradeWithSquad::execute()
                 pre_partner.push_back(*I);
 
             const_cast<CALifeSimulator&>(ai().alife()).vfPerformTrading(m_alife_human, m_alife_partner);
+            m_computed = true; // V4.1
 
             // what the NPC received (new children) = what the partner gave
             ALife::OBJECT_IT I2 = m_alife_human->children.begin();

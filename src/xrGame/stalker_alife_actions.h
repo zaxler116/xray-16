@@ -77,6 +77,7 @@ protected:
     CSE_ALifeTrader* m_alife_trader;
     u32 m_trade_time;
     float m_approach_distance_sqr;
+    bool m_computed; // V4.1 - true after compute_trade/apply_trade, used for rollback in finalize()
 
     // V1.1 - animation state
     ETradePhase m_trade_phase;
@@ -154,6 +155,7 @@ protected:
     CSE_ALifeHumanAbstract* m_alife_partner;
     u32 m_trade_time;
     float m_approach_distance_sqr;
+    bool m_computed; // V4.1 - true after vfPerformTrading, used for rollback in finalize()
 
     ETradePhase m_trade_phase;
     u32 m_phase_start_time;
