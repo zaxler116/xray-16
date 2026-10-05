@@ -84,6 +84,16 @@ protected:
     LPCSTR m_hand_over_animation;
     u32 m_animation_duration_ms;
 
+    // V1.2 - trade plan: what the NPC gives/receives, by distinct item type
+    struct STradeAnimItem
+    {
+        CGameObject* m_go;
+        shared_str m_section;
+    };
+    typedef xr_vector<STradeAnimItem> TRADE_ANIM_ITEMS;
+    TRADE_ANIM_ITEMS m_give_items;
+    TRADE_ANIM_ITEMS m_receive_items;
+
 public:
     CStalkerActionTradeWithTrader(CAI_Stalker* object, LPCSTR action_name = "");
     virtual void initialize();
@@ -95,6 +105,8 @@ private:
     void finish_hand_over_animation();
     void compute_trade_plan();
     void apply_trade_item(int index, bool giving);
+    void mirror_client_to_alife();
+    void mirror_alife_to_client();
 };
 
 //////////////////////////////////////////////////////////////////////////

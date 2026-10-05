@@ -224,6 +224,8 @@ void CStalkerActionTradeWithTrader::initialize()
     m_current_item_go = 0;
     m_current_item_section = "";
     m_animation_item_index = 0;
+    m_give_items.clear();
+    m_receive_items.clear();
 
     // find the nearest ALife trader (same logic as the evaluator)
     m_trader_target = 0;
@@ -313,7 +315,6 @@ void CStalkerActionTradeWithTrader::start_hand_over_animation(CGameObject* item,
     m_current_item_go = item;
     m_current_item_section = section_id;
     m_animation_start_time = Device.dwTimeGlobal;
-    m_trade_phase = eTradePhaseGiveItems;
 
     // V1.1 - set weapon to idle
     if (object().inventory().ActiveItem())
@@ -356,18 +357,110 @@ void CStalkerActionTradeWithTrader::finish_hand_over_animation()
 
     m_current_item_go = 0;
     m_current_item_section = "";
-    m_trade_phase = eTradePhaseMirrorBack;
+}
+
+void CStalkerActionTradeWithTrader::mirror_client_to_alife()
+{
+    // move every client item to the ALife human (client inventory -> ALife)
+    CInventoryItem* item = 0;
+    while ((item = object().inventory().tpfGetObjectByIndex(0)) != 0)
+    {
+        CGameObject* go = smart_cast<CGameObject*>(item);
+        if (!go)
+            continue;
+        CSE_ALifeInventoryItem* alife_item =
+            smart_cast<CSE_ALifeInventoryItem*>(ai().alife().objects().object(go->ID()));
+        if (!alife_item)
+        {
+            // no ALife twin - drop the item
+            object().inventory().DropItem(go, true, true);
+            continue;
+        }
+        // detach from the client inventory and attach to the ALife human
+        object().inventory().DropItem(go, true, true);
+        m_alife_human->attach(alife_item, true);
+    }
+    m_alife_human->m_dwMoney = object().get_money();
+}
+
+void CStalkerActionTradeWithTrader::mirror_alife_to_client()
+{
+    // mirror the result back: ALife children -> client inventory
+    u32 money = m_alife_human->m_dwMoney;
+    ALife::OBJECT_VECTOR taken;
+    ALife::OBJECT_IT I = m_alife_human->children.begin();
+    ALife::OBJECT_IT E = m_alife_human->children.end();
+    for (; I != E; ++I)
+    {
+        CSE_ALifeInventoryItem* alife_item =
+            smart_cast<CSE_ALifeInventoryItem*>(ai().alife().objects().object(*I));
+        if (!alife_item)
+            continue;
+        CGameObject* go = smart_cast<CGameObject*>(ai().alife().objects().object(*I));
+        if (!go)
+            continue;
+        // take the item into the client inventory, then detach it from the ALife human
+        object().inventory().Take(go, true, false);
+        taken.push_back(*I);
+    }
+    for (ALife::OBJECT_VECTOR::iterator J = taken.begin(); J != taken.end(); ++J)
+    {
+        CSE_ALifeInventoryItem* alife_item =
+            smart_cast<CSE_ALifeInventoryItem*>(ai().alife().objects().object(*J));
+        m_alife_human->detach(alife_item, 0, true, false);
+    }
+    object().set_money(money, true);
 }
 
 void CStalkerActionTradeWithTrader::compute_trade_plan()
 {
-    // V1.1 - compute what items to give/receive (placeholder for now)
-    m_trade_phase = eTradePhaseCompute;
+    // snapshot the item types the NPC will give: the ALife children that are
+    // client-owned (their CGameObject is in the registry, not a trader's stock)
+    {
+        ALife::OBJECT_IT I = m_alife_human->children.begin();
+        ALife::OBJECT_IT E = m_alife_human->children.end();
+        for (; I != E; ++I)
+        {
+            CSE_ALifeInventoryItem* item =
+                smart_cast<CSE_ALifeInventoryItem*>(ai().alife().objects().object(*I));
+            if (!item)
+                continue;
+            CGameObject* go = smart_cast<CGameObject*>(ai().alife().objects().object(*I));
+            if (!go)
+                continue;
+            // the item's type is the client-side inventory item's section id
+            CInventoryItem* inv = smart_cast<CInventoryItem*>(go);
+            if (!inv)
+                continue;
+            // dedup by section (same item type = one hand-over animation)
+            bool found = false;
+            for (TRADE_ANIM_ITEMS::iterator K = m_give_items.begin(); K != m_give_items.end(); ++K)
+            {
+                if (K->m_section == inv->m_section_id)
+                {
+                    found = true;
+                    break;
+                }
+            }
+            if (found)
+                continue;
+            STradeAnimItem entry;
+            entry.m_go = go;
+            entry.m_section = inv->m_section_id;
+            m_give_items.push_back(entry);
+        }
+    }
+    // cap: max N distinct item types per participant
+    while (int(m_give_items.size()) > m_max_animation_items)
+        m_give_items.resize(m_max_animation_items);
 }
 
 void CStalkerActionTradeWithTrader::apply_trade_item(int index, bool giving)
 {
-    // V1.1 - apply trade for single item (placeholder for now)
+    // V1.2 - no-op: the trade itself is monolithic (communicate_with_customer);
+    // the per-item calls are only the presentational hand-over animations
+    (void)index;
+    (void)giving;
 }
 
 void CStalkerActionTradeWithTrader::execute()
@@ -408,66 +501,144 @@ void CStalkerActionTradeWithTrader::execute()
     object().movement().set_mental_state(eMentalStateFree);
     object().sight().setup(CSightAction(SightManager::eSightTypeObject, smart_cast<const CGameObject*>(m_trader_target), true));
 
-    // trade once: mirror the client inventory onto the ALife human, run the
-    // 2003 communicate_with_customer (sell everything, buy back what fits
-    // the preferences), then mirror the result back to the client inventory.
+    // trade state machine:
+    //  Approach -> Compute (mirror in + plan + communicate) ->
+    //  GiveItems (hand-over animations) -> ReceiveItems -> MirrorBack -> Done
     if (!m_trade_time)
+        m_trade_phase = eTradePhaseCompute;
+
+    switch (m_trade_phase)
     {
+    case eTradePhaseCompute:
         m_trade_time = Device.dwTimeGlobal;
 
-        // move every client item to the ALife human (client inventory -> ALife)
-        {
-            CInventoryItem* item = 0;
-            while ((item = object().inventory().tpfGetObjectByIndex(0)) != 0)
-            {
-                CGameObject* go = smart_cast<CGameObject*>(item);
-                if (!go)
-                    continue;
-                CSE_ALifeInventoryItem* alife_item =
-                    smart_cast<CSE_ALifeInventoryItem*>(ai().alife().objects().object(go->ID()));
-                if (!alife_item)
-                {
-                    // no ALife twin - drop the item
-                    object().inventory().DropItem(go, true, true);
-                    continue;
-                }
-                // detach from the client inventory and attach to the ALife human
-                object().inventory().DropItem(go, true, true);
-                m_alife_human->attach(alife_item, true);
-            }
-        }
-        m_alife_human->m_dwMoney = object().get_money();
+        // 1. mirror the client inventory onto the ALife human (so the trade has real data)
+        mirror_client_to_alife();
 
-        // the trade itself (recurses into the group, if this stalker is in one)
-        const_cast<CALifeSimulator&>(ai().alife()).communicate_with_customer(m_alife_human, m_alife_trader);
+        // 2. snapshot what the NPC will give (client-owned children, by type)
+        compute_trade_plan();
 
-        // mirror the result back: ALife children -> client inventory
-        u32 money = m_alife_human->m_dwMoney;
+        // 3. run the trade and diff the human's children: new ones = received items
         {
-            ALife::OBJECT_VECTOR taken;
+            ALife::OBJECT_VECTOR pre_trade;
             ALife::OBJECT_IT I = m_alife_human->children.begin();
             ALife::OBJECT_IT E = m_alife_human->children.end();
             for (; I != E; ++I)
+                pre_trade.push_back(*I);
+
+            // the trade itself (recurses into the group, if this stalker is in one)
+            const_cast<CALifeSimulator&>(ai().alife()).communicate_with_customer(m_alife_human, m_alife_trader);
+
+            // diff: new children = received items
             {
-                CSE_ALifeInventoryItem* alife_item =
-                    smart_cast<CSE_ALifeInventoryItem*>(ai().alife().objects().object(*I));
-                if (!alife_item)
-                    continue;
-                CGameObject* go = smart_cast<CGameObject*>(ai().alife().objects().object(*I));
-                if (!go)
-                    continue;
-                // take the item into the client inventory, then detach it from the ALife human
-                object().inventory().Take(go, true, false);
-                taken.push_back(*I);
+                ALife::OBJECT_IT I2 = m_alife_human->children.begin();
+                ALife::OBJECT_IT E2 = m_alife_human->children.end();
+                for (; I2 != E2; ++I2)
+                {
+                    bool pre = false;
+                    for (ALife::OBJECT_VECTOR::iterator K = pre_trade.begin(); K != pre_trade.end(); ++K)
+                        if (*K == *I2)
+                        {
+                            pre = true;
+                            break;
+                        }
+                    if (pre)
+                        continue;
+                    CSE_ALifeInventoryItem* item =
+                        smart_cast<CSE_ALifeInventoryItem*>(ai().alife().objects().object(*I2));
+                    if (!item)
+                        continue;
+                    CGameObject* go = smart_cast<CGameObject*>(ai().alife().objects().object(*I2));
+                    if (!go)
+                        continue;
+                    CInventoryItem* inv = smart_cast<CInventoryItem*>(go);
+                    if (!inv)
+                        continue;
+                    bool found = false;
+                    for (TRADE_ANIM_ITEMS::iterator K2 = m_receive_items.begin(); K2 != m_receive_items.end(); ++K2)
+                    {
+                        if (K2->m_section == inv->m_section_id)
+                        {
+                            found = true;
+                            break;
+                        }
+                    }
+                    if (found)
+                        continue;
+                    STradeAnimItem entry;
+                    entry.m_go = go;
+                    entry.m_section = inv->m_section_id;
+                    m_receive_items.push_back(entry);
+                }
             }
-            for (ALife::OBJECT_VECTOR::iterator J = taken.begin(); J != taken.end(); ++J)
+            while (int(m_receive_items.size()) > m_max_animation_items)
+                m_receive_items.resize(m_max_animation_items);
+        }
+
+        m_animation_item_index = 0;
+        if (int(m_give_items.size()) > 0)
+            m_trade_phase = eTradePhaseGiveItems;
+        else if (int(m_receive_items.size()) > 0)
+            m_trade_phase = eTradePhaseReceiveItems;
+        else
+            m_trade_phase = eTradePhaseMirrorBack;
+        return;
+
+    case eTradePhaseGiveItems:
+    case eTradePhaseReceiveItems:
+    {
+        // hard cap: 60 seconds max for all animations
+        if (m_trade_time && Device.dwTimeGlobal - m_trade_time > 60000)
+        {
+            finish_hand_over_animation();
+            m_trade_phase = eTradePhaseMirrorBack;
+            return;
+        }
+
+        const TRADE_ANIM_ITEMS& list =
+            (m_trade_phase == eTradePhaseGiveItems) ? m_give_items : m_receive_items;
+
+        if (m_current_item_go == 0)
+        {
+            // start the next hand-over animation
+            if (m_animation_item_index < int(list.size()))
             {
-                CSE_ALifeInventoryItem* alife_item =
-                    smart_cast<CSE_ALifeInventoryItem*>(ai().alife().objects().object(*J));
-                m_alife_human->detach(alife_item, 0, true, false);
+                const STradeAnimItem& entry = list[m_animation_item_index];
+                start_hand_over_animation(entry.m_go, entry.m_section.c_str());
+            }
+            else
+            {
+                // all animations of this phase done
+                m_trade_phase = (m_trade_phase == eTradePhaseGiveItems && int(m_receive_items.size()) > 0)
+                                    ? eTradePhaseReceiveItems
+                                    : eTradePhaseMirrorBack;
+                return;
             }
         }
-        object().set_money(money, true);
+        else if (Device.dwTimeGlobal - m_animation_start_time >= m_animation_duration_ms)
+        {
+            finish_hand_over_animation();
+            ++m_animation_item_index;
+            if (m_animation_item_index >= int(list.size()))
+            {
+                m_trade_phase = (m_trade_phase == eTradePhaseGiveItems && int(m_receive_items.size()) > 0)
+                                    ? eTradePhaseReceiveItems
+                                    : eTradePhaseMirrorBack;
+                return;
+            }
+        }
+        return;
+    }
+
+    case eTradePhaseMirrorBack:
+        // mirror the result back: ALife children -> client inventory
+        mirror_alife_to_client();
+        m_trade_phase = eTradePhaseDone;
+        return;
+
+    case eTradePhaseDone:
+        // nothing to do; the action stays until the planner finalizes it
+        return;
     }
 }
 CStalkerActionNoALife::CStalkerActionNoALife(CAI_Stalker* object, LPCSTR action_name) : inherited(object, action_name)
