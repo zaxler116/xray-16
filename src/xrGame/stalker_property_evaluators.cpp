@@ -21,6 +21,8 @@
 #include "item_manager.h"
 #include "enemy_manager.h"
 #include "danger_manager.h"
+#include "relation_registry.h"
+#include "InventoryOwner.h"
 #include "ai_space.h"
 #include "ai/stalker/ai_stalker.h"
 #include "ai/stalker/ai_stalker_impl.h"
@@ -328,6 +330,64 @@ _value_type CStalkerPropertyEvaluatorSmartTerrainTask::evaluate()
     VERIFY(stalker);
     stalker->brain().select_task();
     return (stalker->m_smart_terrain_id != 0xffff);
+}
+
+//////////////////////////////////////////////////////////////////////////
+// CStalkerPropertyEvaluatorSquadGreeting
+//////////////////////////////////////////////////////////////////////////
+
+CStalkerPropertyEvaluatorSquadGreeting::CStalkerPropertyEvaluatorSquadGreeting(
+    CAI_Stalker* object, LPCSTR evaluator_name)
+    : inherited(object ? object->lua_game_object() : 0, evaluator_name),
+      m_distance(100.f), m_distance_sqr(100.f * 100.f), m_last_greeting_time(0), m_last_greeting_target(0)
+{
+}
+
+_value_type CStalkerPropertyEvaluatorSquadGreeting::evaluate()
+{
+    if (!ai().get_alife())
+        return (false);
+
+    // cooldown: no new greeting while one is in progress or right after one
+    if (Device.dwTimeGlobal < m_last_greeting_time + 60000)
+        return (false);
+
+    const CVisualMemoryManager::RAW_VISIBLES& visibles = m_object->memory().visual().raw_objects();
+    const CEntity* best = 0;
+    float best_distance_sqr = m_distance_sqr;
+
+    for (CVisualMemoryManager::RAW_VISIBLES::const_iterator i = visibles.begin(); i != visibles.end(); ++i)
+    {
+        const CEntity* e = smart_cast<const CEntity*>(*i);
+        if (!e || !e->g_Alive())
+            continue;
+        if (e->ID() == m_object->ID())
+            continue;
+        if (e->g_Squad() == m_object->g_Squad())
+            continue; // own squad members never greet
+        const CAI_Stalker* other_stalker = smart_cast<const CAI_Stalker*>(e);
+        if (!other_stalker)
+            continue; // only stalker NPCs
+
+        float dist_sqr = m_object->Position().distance_to_sqr(e->Position());
+        if (dist_sqr > best_distance_sqr)
+            continue;
+
+        // mutual community relation must be neutral or better
+        const CInventoryOwner* io = smart_cast<const CInventoryOwner*>(e);
+        if (!io)
+            continue;
+        CHARACTER_GOODWILL relation =
+            RELATION_REGISTRY().GetCommunityRelation(m_object->Community(), io->Community());
+        if (relation < 0)
+            continue;
+
+        best = e;
+        best_distance_sqr = dist_sqr;
+    }
+
+    m_last_greeting_target = best;
+    return (best != 0);
 }
 
 //////////////////////////////////////////////////////////////////////////

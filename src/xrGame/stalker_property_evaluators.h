@@ -269,6 +269,26 @@ public:
 };
 
 //////////////////////////////////////////////////////////////////////////
+// CStalkerPropertyEvaluatorSquadGreeting
+//////////////////////////////////////////////////////////////////////////
+
+class CStalkerPropertyEvaluatorSquadGreeting : public CStalkerPropertyEvaluator
+{
+protected:
+    typedef CStalkerPropertyEvaluator inherited;
+
+    float m_distance;
+    float m_distance_sqr;
+    u32 m_last_greeting_time;
+    const CEntity* m_last_greeting_target;
+
+public:
+    CStalkerPropertyEvaluatorSquadGreeting(CAI_Stalker* object = 0, LPCSTR evaluator_name = "");
+    virtual _value_type evaluate();
+    const CEntity* greeting_target() const { return m_last_greeting_target; }
+};
+
+//////////////////////////////////////////////////////////////////////////
 // CStalkerPropertyEvaluatorEnemyReached
 //////////////////////////////////////////////////////////////////////////
 
