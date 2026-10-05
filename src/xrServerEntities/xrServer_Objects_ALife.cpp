@@ -2016,10 +2016,11 @@ void CSE_ALifeSmartZone::FillProps(LPCSTR pref, PropItemVec &items) {
 void CSE_ALifeSmartZone::update() {}
 float CSE_ALifeSmartZone::detect_probability() { return (0.f); }
 void CSE_ALifeSmartZone::smart_touch(CSE_ALifeMonsterAbstract *monster) {
-  // 2003 ALife smart zones (like the "singing" zones) triggered scripted
-  // effects on monster touch. No surviving config references these in the
-  // 2005-era gamedata, so this is a safe no-op that keeps the old code
-  // path (check_for_interaction -> eMeetActionSmartTerrain) compilable.
+  // Stage 5.1: 2003 ALife smart zones triggered scripted effects on monster
+  // touch via a lua callback (INHERIT_ZONE registers smart_touch as a luabind
+  // virtual). No surviving gamedata references these in the 2005 era, so
+  // this stays a no-op. If lua scripts are added later, replace the body
+  // with: luabind::call_member<void>(this, "smart_touch", monster);
   (void)monster;
 }
 ////////////////////////////////////////////////////////////////////////////
