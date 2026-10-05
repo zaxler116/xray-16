@@ -64,6 +64,8 @@ public:
     int  item_current_count(CSE_ALifeInventoryItem* item, CSE_ALifeHumanAbstract* owner) const;
     bool item_is_personal(CSE_ALifeInventoryItem* item, CSE_ALifeHumanAbstract* owner) const;
     bool item_is_keepable(CSE_ALifeInventoryItem* item, CSE_ALifeHumanAbstract* owner) const;
+    // N.5: ammo boxes of the best weapon that must be kept (bullets reserve)
+    int  ammo_keep_count(CSE_ALifeInventoryItem* item, CSE_ALifeHumanAbstract* owner) const;
 
     // N.2: trade tuning (defaults; N.5 will load them from a config section)
     float m_food_keep_days;     // game days of food to keep

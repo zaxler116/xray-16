@@ -12,6 +12,10 @@ IC CALifeHumanObjectHandler::CALifeHumanObjectHandler(object_type* object)
     : m_object(object), m_food_keep_days(1.0f), m_ammo_keep_factor(1.0f)
 {
     VERIFY(object);
+
+    // N.5: trade tuning, configs/alife.ltx [alife] (defaults above if absent)
+    pSettings->read_if_exists(m_food_keep_days, "alife", "food_keep_days");
+    pSettings->read_if_exists(m_ammo_keep_factor, "alife", "ammo_keep_factor");
 }
 
 IC CALifeHumanObjectHandler::object_type& CALifeHumanObjectHandler::object() const

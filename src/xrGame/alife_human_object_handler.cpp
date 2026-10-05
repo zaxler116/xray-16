@@ -720,6 +720,11 @@ int CALifeHumanObjectHandler::item_keep_count(
         return keep > 0 ? keep : 1;
     }
 
+    // N.5: ammo reserve for the owner's current best weapon
+    CSE_ALifeItemAmmo* ammo = smart_cast<CSE_ALifeItemAmmo*>(item);
+    if (ammo)
+        return ammo_keep_count(item, owner);
+
     // single medikit
     if (item->m_iHealthValue > 0)
         return 1;
@@ -769,6 +774,40 @@ int CALifeHumanObjectHandler::item_current_count(
             ++count;
     }
     return count;
+}
+
+int CALifeHumanObjectHandler::ammo_keep_count(
+    CSE_ALifeInventoryItem* item, CSE_ALifeHumanAbstract* owner) const
+{
+    if (!item || !owner)
+        return 0;
+
+    // the weapon whose ammo must be kept
+    ALife::EHitType tHitType;
+    float fHitPower;
+    CSE_ALifeItemWeapon* best = owner->tpfGetBestWeapon(tHitType, fHitPower);
+    if (!best || !best->m_caAmmoSections)
+        return 0;
+
+    // does this box fit the weapon?
+    CSE_ALifeItemAmmo* ammo = smart_cast<CSE_ALifeItemAmmo*>(item);
+    if (!ammo || !strstr(best->m_caAmmoSections, ammo->s_name.c_str()))
+        return 0;
+
+    // bullets the owner currently carries for this weapon
+    u32 have = const_cast<CALifeHumanObjectHandler*>(this)->get_available_ammo_count(best, owner->children);
+    if (have == u16(-1))
+        return 0;
+
+    float factor = m_ammo_keep_factor > 0.f ? m_ammo_keep_factor : 1.f;
+    u32 reserve = (u32)std::ceil(float(have) * factor);
+
+    // whole boxes needed to keep the reserve; the box itself is never sold
+    int have_count = item_current_count(item, owner);
+    if (ammo->a_elapsed <= 0)
+        return have_count;
+    int need = (int)((reserve + ammo->a_elapsed - 1) / ammo->a_elapsed);
+    return need < have_count ? need : have_count;
 }
 
 // Is this item personal (must never be sold)?
