@@ -102,3 +102,38 @@ void CWorldKnowledgeManager::add_creature_seen(const CEntityAlive* creature, con
     if (m_points.size() > m_max_points)
         m_points.erase(m_points.begin());
 }
+
+void CWorldKnowledgeManager::save(NET_Packet& packet) const
+{
+    u16 count = (u16)m_points.size();
+    packet.w_u16(count);
+    for (u16 i = 0; i < count; ++i)
+    {
+        const SWorldKnowledgePoint& p = m_points[i];
+        packet.w_vec3(p.position);
+        packet.w_u32(p.level_vertex_id);
+        packet.w_u16(p.creature_object_id);
+        packet.w_u8((u8)p.relation_to_me);
+        packet.w_u8((u8)p.relation_for_me);
+        packet.w_u32(p.last_seen_time);
+        packet.w_u32(p.seen_level_time);
+    }
+}
+
+void CWorldKnowledgeManager::load(IReader& packet)
+{
+    m_points.clear();
+    u16 count = packet.r_u16();
+    for (u16 i = 0; i < count; ++i)
+    {
+        SWorldKnowledgePoint p;
+        p.position = packet.r_vec3();
+        u32 lv = 0; lv = packet.r_u32(); p.level_vertex_id = lv;
+        p.creature_object_id = packet.r_u16();
+        u8 rel1 = 0; rel1 = packet.r_u8(); p.relation_to_me = (ALife::ERelationType)rel1;
+        u8 rel2 = 0; rel2 = packet.r_u8(); p.relation_for_me = (ALife::ERelationType)rel2;
+        u32 lt = 0; lt = packet.r_u32(); p.last_seen_time = lt;
+        u32 slt = 0; slt = packet.r_u32(); p.seen_level_time = slt;
+        m_points.push_back(p);
+    }
+}

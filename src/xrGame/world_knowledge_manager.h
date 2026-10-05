@@ -51,6 +51,8 @@ public:
         u32 level_vertex_id);
 
     IC const POINTS& points() const { return (m_points); }
+    void save(NET_Packet& packet) const;
+    void load(IReader& packet);
     IC u32 ttl_ms() const { return (m_ttl_ms); }
     IC u32 max_points() const { return (m_max_points); }
     IC const CCustomMonster* object() const { return (m_object); }

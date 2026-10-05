@@ -366,6 +366,7 @@ void CMemoryManager::save(NET_Packet& packet) const
     sound().save(packet);
     hit().save(packet);
     danger().save(packet);
+    world().save(packet);
 }
 
 void CMemoryManager::load(IReader& packet)
@@ -374,6 +375,7 @@ void CMemoryManager::load(IReader& packet)
     sound().load(packet);
     hit().load(packet);
     danger().load(packet);
+    world().load(packet);
 }
 
 // we do this due to the limitation of client spawn manager
