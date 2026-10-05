@@ -7,6 +7,7 @@
 ////////////////////////////////////////////////////////////////////////////
 
 #include "StdAfx.h"
+#include "ai_debug.h"
 #include "alife_graph_registry.h"
 #include "xrServerEntities/xrMessages.h"
 
@@ -102,8 +103,9 @@ void CALifeGraphRegistry::setup_current_level()
 void CALifeGraphRegistry::attach(CSE_Abstract& object, CSE_ALifeInventoryItem* item,
     GameGraph::_GRAPH_ID game_vertex_id, bool alife_query, bool add_children)
 {
-#ifdef DEBUG
-    if (psAI_Flags.test(aiALife))
+#if defined(DEBUG) || defined(DEBUG_ALIFE)
+
+    if (ALIFE_LOG_ON)
     {
         Msg("[LSS] Attaching item [%s][%d] to [%s][%d]", item->base()->name_replace(), item->base()->ID,
             object.name_replace(), object.ID);
@@ -123,8 +125,9 @@ void CALifeGraphRegistry::attach(CSE_Abstract& object, CSE_ALifeInventoryItem* i
 void CALifeGraphRegistry::detach(CSE_Abstract& object, CSE_ALifeInventoryItem* item,
     GameGraph::_GRAPH_ID game_vertex_id, bool alife_query, bool remove_children)
 {
-#ifdef DEBUG
-    if (psAI_Flags.test(aiALife))
+#if defined(DEBUG) || defined(DEBUG_ALIFE)
+
+    if (ALIFE_LOG_ON)
     {
         Msg("[LSS] Detaching item [%s][%d] from [%s][%d]", item->base()->name_replace(), item->base()->ID,
             object.name_replace(), object.ID);
@@ -167,8 +170,9 @@ void CALifeGraphRegistry::detach(CSE_Abstract& object, CSE_ALifeInventoryItem* i
 
 void CALifeGraphRegistry::add(CSE_ALifeDynamicObject* object, GameGraph::_GRAPH_ID game_vertex_id, bool update)
 {
-#ifdef DEBUG
-    if (psAI_Flags.test(aiALife))
+#if defined(DEBUG) || defined(DEBUG_ALIFE)
+
+    if (ALIFE_LOG_ON)
     {
         Msg("[LSS] adding object [%s][%d] to graph point %d", object->name_replace(), object->ID, game_vertex_id);
     }
@@ -193,8 +197,9 @@ void CALifeGraphRegistry::remove(CSE_ALifeDynamicObject* object, GameGraph::_GRA
 {
     if (object->used_ai_locations() /**&& object->interactive()**/)
     {
-#ifdef DEBUG
-        if (psAI_Flags.test(aiALife))
+#if defined(DEBUG) || defined(DEBUG_ALIFE)
+
+        if (ALIFE_LOG_ON)
         {
             Msg("[LSS] removing object [%s][%d] from graph point %d", object->name_replace(), object->ID,
                 game_vertex_id);

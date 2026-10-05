@@ -1,3 +1,4 @@
+#include "ai_debug.h"
 ////////////////////////////////////////////////////////////////////////////
 //	Module 		: alife_schedule_registry_inline.h
 //	Created 	: 15.01.2003
@@ -19,8 +20,9 @@ IC void CALifeScheduleRegistry::update()
 {
     //	u32							count =
     objects().empty() ? 0 : inherited::update(CUpdatePredicate(m_objects_per_update), false);
-#ifdef DEBUG
-    if (psAI_Flags.test(aiALife))
+#if defined(DEBUG) || defined(DEBUG_ALIFE)
+
+    if (ALIFE_LOG_ON)
     {
         //		Msg						("[LSS][SU][%d : %d]",count, objects().size());
     }

@@ -1,4 +1,5 @@
 #include "StdAfx.h"
+#include "ai_debug.h"
 #include "game_sv_single.h"
 #include "xrServer_Objects_ALife_Monsters.h"
 #include "alife_simulator.h"
@@ -94,8 +95,9 @@ BOOL game_sv_Single::OnTouch(u16 eid_who, u16 eid_what, BOOL bForced)
             ai().alife().graph().level().object(l_tpALifeInventoryItem->base()->ID, true) &&
             ai().alife().objects().object(e_who->ID, true) && ai().alife().objects().object(e_what->ID, true))
             alife().graph().attach(*e_who, l_tpALifeInventoryItem, l_tpDynamicObject->m_tGraphID, false, false);
-#ifdef DEBUG
-        else if (psAI_Flags.test(aiALife))
+#if defined(DEBUG) || defined(DEBUG_ALIFE)
+
+        else if (ALIFE_LOG_ON)
         {
             Msg("Cannot attach object [%s][%s][%d] to object [%s][%s][%d]", e_what->name_replace(), e_what->s_name.c_str(),
                 e_what->ID, e_who->name_replace(), e_who->s_name.c_str(), e_who->ID);
@@ -142,8 +144,9 @@ void game_sv_Single::OnDetach(u16 eid_who, u16 eid_what)
                 alife().create(dynamic_object);
                 l_tpALifeInventoryItem->base()->ID_Parent = id;
             }
-#ifdef DEBUG
-            else if (psAI_Flags.test(aiALife))
+#if defined(DEBUG) || defined(DEBUG_ALIFE)
+
+            else if (ALIFE_LOG_ON)
             {
                 Msg("Cannot detach object [%s][%s][%d] from object [%s][%s][%d]",
                     l_tpALifeInventoryItem->base()->name_replace(), l_tpALifeInventoryItem->base()->s_name.c_str(),

@@ -88,7 +88,7 @@ public:
   virtual void add_online(const bool &update_registries);
   virtual void add_offline(const xr_vector<ALife::_OBJECT_ID> &saved_children,
                            const bool &update_registries);
-#ifdef DEBUG
+#if defined(DEBUG) || defined(DEBUG_ALIFE)
   bool check_inventory_consistency();
 #endif
   void vfInitInventory();

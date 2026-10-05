@@ -7,6 +7,7 @@
 ////////////////////////////////////////////////////////////////////////////
 
 #include "StdAfx.h"
+#include "ai_debug.h"
 #include "alife_update_manager.h"
 #include "alife_simulator_header.h"
 #include "alife_time_manager.h"
@@ -383,8 +384,9 @@ void CALifeUpdateManager::teleport_object(
         return;
     }
 
-#ifdef DEBUG
-    if (psAI_Flags.test(aiALife))
+#if defined(DEBUG) || defined(DEBUG_ALIFE)
+
+    if (ALIFE_LOG_ON)
     {
         Msg("[LSS] teleporting object [%s][%s][%d] from level [%s], position [%f][%f][%f] to level [%s], position "
             "[%f][%f][%f]",

@@ -71,7 +71,7 @@ void CSE_ALifeTraderAbstract::vfInitInventory() {
   m_iCumulativeItemVolume = 0;
 }
 
-#ifdef DEBUG
+#if defined(DEBUG) || defined(DEBUG_ALIFE)
 bool CSE_ALifeTraderAbstract::check_inventory_consistency() {
   // Stage 4.9: 2003 logic - verify that m_fCumulativeItemMass matches the
   // sum of m_fMass over all children. The volume check is dropped because
@@ -91,13 +91,13 @@ bool CSE_ALifeTraderAbstract::check_inventory_consistency() {
                 xr_fabs(m_fCumulativeItemMass - mass) < 0.01f,
             "Cumulative item mass mismatch");
 
-  if (psAI_Flags.test(aiALife))
+  if (ALIFE_LOG_ON)
     Msg("[LSS] [%s] inventory consistent: mass=%.3f (computed=%.3f)",
         base()->name_replace(), m_fCumulativeItemMass, mass);
 
   return true;
 }
-#endif
+#endif // defined(DEBUG) || defined(DEBUG_ALIFE)
 
 void CSE_ALifeDynamicObject::attach(
     CSE_ALifeInventoryItem *tpALifeInventoryItem, bool bALifeRequest,
@@ -177,8 +177,8 @@ void add_online_impl(CSE_ALifeDynamicObject *object,
         smart_cast<CSE_Abstract *>(l_tpALifeInventoryItem);
     object->alife().server().entity_Destroy(l_tpAbstract);
 
-#ifdef DEBUG
-    //		if (psAI_Flags.test(aiALife))
+#if defined(DEBUG) || defined(DEBUG_ALIFE)
+    //		if (ALIFE_LOG_ON)
     //			Msg					("[LSS] Spawning
     //item
     //[%s][%s][%d]",l_tpALifeInventoryItem->base()->name_replace(),*l_tpALifeInventoryItem->base()->s_name,l_tpALifeDynamicObject->ID);
@@ -226,8 +226,8 @@ void add_offline_impl(CSE_ALifeDynamicObject *object,
     CSE_ALifeInventoryItem *inventory_item =
         smart_cast<CSE_ALifeInventoryItem *>(child);
     VERIFY2(inventory_item, "Non inventory item object has parent?!");
-#ifdef DEBUG
-    //		if (psAI_Flags.test(aiALife))
+#if defined(DEBUG) || defined(DEBUG_ALIFE)
+    //		if (ALIFE_LOG_ON)
     //			Msg					("[LSS]
     //Destroying item
     //[%s][%s][%d]",inventory_item->base()->name_replace(),*inventory_item->base()->s_name,inventory_item->base()->ID);

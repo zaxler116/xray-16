@@ -7,6 +7,7 @@
 ////////////////////////////////////////////////////////////////////////////
 
 #include "StdAfx.h"
+#include "ai_debug.h"
 #include "alife_switch_manager.h"
 #include "xrServer_Objects_ALife.h"
 #include "alife_graph_registry.h"
@@ -66,7 +67,7 @@ void CALifeSwitchManager::add_online(CSE_ALifeDynamicObject* object, bool update
     //          "Invalid vertex for object ", object->name_replace());
 
 #ifndef MASTER_GOLD
-    if (psAI_Flags.test(aiALife))
+    if (ALIFE_LOG_ON)
         Msg("[LSS] Spawning object [%s][%s][%d]", object->name_replace(), object->s_name.c_str(), object->ID);
 #endif
 
@@ -94,8 +95,9 @@ void CALifeSwitchManager::remove_online(CSE_ALifeDynamicObject* object, bool upd
     _OBJECT_ID object_id = object->ID;
     object->ID = server().PerformIDgen(object_id);
 
-#ifdef DEBUG
-    if (psAI_Flags.test(aiALife))
+#if defined(DEBUG) || defined(DEBUG_ALIFE)
+
+    if (ALIFE_LOG_ON)
         Msg("[LSS] Destroying object [%s][%s][%d]", object->name_replace(), object->s_name.c_str(), object->ID);
 #endif
 
@@ -106,8 +108,9 @@ void CALifeSwitchManager::remove_online(CSE_ALifeDynamicObject* object, bool upd
 void CALifeSwitchManager::switch_online(CSE_ALifeDynamicObject* object)
 {
     START_PROFILE("ALife/switch/switch_online")
-#ifdef DEBUG
-    //	if (psAI_Flags.test(aiALife))
+#if defined(DEBUG) || defined(DEBUG_ALIFE)
+
+    //	if (ALIFE_LOG_ON)
     Msg("[LSS][%d] Going online [%d][%s][%d] ([%f][%f][%f] : [%f][%f][%f]), on '%s'", Device.dwFrame,
         Device.dwTimeGlobal, object->name_replace(), object->ID, VPUSH(graph().actor()->o_Position),
         VPUSH(object->o_Position), "*SERVER*");
@@ -119,8 +122,9 @@ void CALifeSwitchManager::switch_online(CSE_ALifeDynamicObject* object)
 void CALifeSwitchManager::switch_offline(CSE_ALifeDynamicObject* object)
 {
     START_PROFILE("ALife/switch/switch_offline")
-#ifdef DEBUG
-    //	if (psAI_Flags.test(aiALife))
+#if defined(DEBUG) || defined(DEBUG_ALIFE)
+
+    //	if (ALIFE_LOG_ON)
     Msg("[LSS][%d] Going offline [%d][%s][%d] ([%f][%f][%f] : [%f][%f][%f]), on '%s'", Device.dwFrame,
         Device.dwTimeGlobal, object->name_replace(), object->ID, VPUSH(graph().actor()->o_Position),
         VPUSH(object->o_Position), "*SERVER*");
@@ -173,8 +177,9 @@ void CALifeSwitchManager::try_switch_online(CSE_ALifeDynamicObject* I)
     {
 // so, object is attached
 // checking if parent is offline too
-#ifdef DEBUG
-        if (psAI_Flags.test(aiALife))
+#if defined(DEBUG) || defined(DEBUG_ALIFE)
+
+        if (ALIFE_LOG_ON)
         {
             CSE_ALifeCreatureAbstract* l_tpALifeCreatureAbstract =
                 smart_cast<CSE_ALifeCreatureAbstract*>(objects().object(I->ID_Parent));

@@ -7,6 +7,7 @@
 ////////////////////////////////////////////////////////////////////////////
 
 #include "pch_script.h"
+#include "ai_debug.h"
 #include "alife_simulator_base.h"
 #include "alife_simulator_header.h"
 #include "alife_time_manager.h"
@@ -261,8 +262,9 @@ void CALifeSimulatorBase::create(CSE_ALifeObject* object)
 
 void CALifeSimulatorBase::release(CSE_Abstract* abstract, bool alife_query)
 {
-#ifdef DEBUG
-    if (psAI_Flags.test(aiALife))
+#if defined(DEBUG) || defined(DEBUG_ALIFE)
+
+    if (ALIFE_LOG_ON)
     {
         Msg("[LSS] Releasing object [%s][%s][%d][%x]", abstract->name_replace(), abstract->s_name.c_str(), abstract->ID,
             smart_cast<void*>(abstract));
@@ -335,8 +337,9 @@ void CALifeSimulatorBase::assign_death_position(CSE_ALifeCreatureAbstract* tpALi
     VERIFY(e == i + ai().game_graph().vertex(tGraphID)->death_point_count());
     i += (e != i) ? random().random(s32(e - i)) : 0;
     tpALifeCreatureAbstract->m_tGraphID = tGraphID;
-#ifdef DEBUG
-    if (psAI_Flags.test(aiALife))
+#if defined(DEBUG) || defined(DEBUG_ALIFE)
+
+    if (ALIFE_LOG_ON)
     {
         Msg("[LSS] Generated death position %s[%f][%f][%f] -> [%f][%f][%f] : [%d]",
             tpALifeCreatureAbstract->name_replace(), VPUSH(tpALifeCreatureAbstract->o_Position),

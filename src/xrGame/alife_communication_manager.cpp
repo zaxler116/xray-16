@@ -424,7 +424,7 @@ void CALifeCommunicationManager::vfPerformTrading(
   CALifeSimulator &l_tpSimulator =
       const_cast<CALifeSimulator &>(ai().alife());
 
-#ifdef DEBUG
+#if defined(DEBUG) || defined(DEBUG_ALIFE)
   VERIFY(tpALifeHumanAbstract1->check_inventory_consistency());
   VERIFY(tpALifeHumanAbstract2->check_inventory_consistency());
 #endif
@@ -435,8 +435,8 @@ void CALifeCommunicationManager::vfPerformTrading(
   append_item_vector(tpALifeHumanAbstract1->children, m_tpItems1);
   append_item_vector(tpALifeHumanAbstract2->children, m_tpItems2);
 
-#ifdef DEBUG
-  if (psAI_Flags.test(aiALife))
+#if defined(DEBUG) || defined(DEBUG_ALIFE)
+  if (ALIFE_LOG_ON)
   {
     vfPrintItems(tpALifeHumanAbstract1, m_tpItems1);
     vfPrintItems(tpALifeHumanAbstract2, m_tpItems2);
@@ -452,8 +452,8 @@ void CALifeCommunicationManager::vfPerformTrading(
   {
     tpALifeHumanAbstract1->brain().m_dwTotalMoney = u32(-1);
     tpALifeHumanAbstract2->brain().m_dwTotalMoney = u32(-1);
-#ifdef DEBUG
-    if (psAI_Flags.test(aiALife))
+#if defined(DEBUG) || defined(DEBUG_ALIFE)
+    if (ALIFE_LOG_ON)
       Msg("There is no money and valuable items to trade");
 #endif
     return;
@@ -590,7 +590,7 @@ void CALifeCommunicationManager::vfPerformTrading(
     }
   }
 
-#ifdef DEBUG
+#if defined(DEBUG) || defined(DEBUG_ALIFE)
   VERIFY(tpALifeHumanAbstract1->check_inventory_consistency());
   VERIFY(tpALifeHumanAbstract2->check_inventory_consistency());
 #endif
@@ -612,7 +612,7 @@ void CALifeCommunicationManager::vfPerformTrading(
     vfRestoreItems(tpALifeHumanAbstract2, m_tpItems2);
   }
 
-#ifdef DEBUG
+#if defined(DEBUG) || defined(DEBUG_ALIFE)
   VERIFY(tpALifeHumanAbstract1->check_inventory_consistency());
   VERIFY(tpALifeHumanAbstract2->check_inventory_consistency());
 #endif
@@ -622,7 +622,7 @@ void CALifeCommunicationManager::vfPerformTrading(
 #else
   vfAttachGatheredItems(tpALifeHumanAbstract1, m_tpBlockedItems1);
 #endif
-#ifdef DEBUG
+#if defined(DEBUG) || defined(DEBUG_ALIFE)
   VERIFY(tpALifeHumanAbstract1->check_inventory_consistency());
   VERIFY(tpALifeHumanAbstract2->check_inventory_consistency());
 #endif
@@ -632,13 +632,13 @@ void CALifeCommunicationManager::vfPerformTrading(
 #else
   vfAttachGatheredItems(tpALifeHumanAbstract2, m_tpBlockedItems2);
 #endif
-#ifdef DEBUG
+#if defined(DEBUG) || defined(DEBUG_ALIFE)
   VERIFY(tpALifeHumanAbstract1->check_inventory_consistency());
   VERIFY(tpALifeHumanAbstract2->check_inventory_consistency());
 #endif
 
-#ifdef DEBUG
-  if (psAI_Flags.test(aiALife))
+#if defined(DEBUG) || defined(DEBUG_ALIFE)
+  if (ALIFE_LOG_ON)
   {
     vfPrintItems(tpALifeHumanAbstract1);
     vfPrintItems(tpALifeHumanAbstract2);
@@ -697,8 +697,8 @@ void CALifeCommunicationManager::communicate_with_customer(
   }
 
   // trade items
-#ifdef DEBUG
-  if (psAI_Flags.test(aiALife))
+#if defined(DEBUG) || defined(DEBUG_ALIFE)
+  if (ALIFE_LOG_ON)
     Msg("Selling all the items to %s", tpALifeTrader->name_replace());
 #endif
   CSE_ALifeItemPDA *original_pda = 0;
@@ -776,8 +776,8 @@ void CALifeCommunicationManager::communicate_with_customer(
   R_ASSERT2(int(tpALifeTrader->m_dwMoney) >= 0,
             "Trader must have enough money to pay for the artefacts!");
 
-#ifdef DEBUG
-  if (psAI_Flags.test(aiALife))
+#if defined(DEBUG) || defined(DEBUG_ALIFE)
+  if (ALIFE_LOG_ON)
     Msg("Assigning correct parents");
 #endif
 #ifdef FAST_OWNERSHIP
@@ -892,10 +892,10 @@ bool CALifeCommunicationManager::bfCheckForInventoryCapacity(
                     tpALifeHumanAbstract2, tpTrader2, l_tpIndexes2))
                 continue;
 
-#ifdef DEBUG
+#if defined(DEBUG) || defined(DEBUG_ALIFE)
             string4096 S;
             char *S1 = S;
-            if (psAI_Flags.test(aiALife))
+            if (ALIFE_LOG_ON)
             {
                 S1 += xr_sprintf(S1, "%s -> ",
                                  tpALifeHumanAbstract1->name_replace());
@@ -907,8 +907,8 @@ bool CALifeCommunicationManager::bfCheckForInventoryCapacity(
 #endif
             if (iSum1 < iBalance + iSum2)
             {
-#ifdef DEBUG
-                if (psAI_Flags.test(aiALife))
+#if defined(DEBUG) || defined(DEBUG_ALIFE)
+                if (ALIFE_LOG_ON)
                     S1 += xr_sprintf(S1, " + $%d",
                                      iBalance + iSum2 - iSum1);
 #endif
@@ -918,8 +918,8 @@ bool CALifeCommunicationManager::bfCheckForInventoryCapacity(
                 tpALifeHumanAbstract2->m_dwMoney += iBalance + iSum2 - iSum1;
             }
 
-#ifdef DEBUG
-            if (psAI_Flags.test(aiALife))
+#if defined(DEBUG) || defined(DEBUG_ALIFE)
+            if (ALIFE_LOG_ON)
             {
                 S1 += xr_sprintf(S1, "\n%s -> ",
                                  tpALifeHumanAbstract2->name_replace());
@@ -932,8 +932,8 @@ bool CALifeCommunicationManager::bfCheckForInventoryCapacity(
 
             if (iSum1 > iBalance + iSum2)
             {
-#ifdef DEBUG
-                if (psAI_Flags.test(aiALife))
+#if defined(DEBUG) || defined(DEBUG_ALIFE)
+                if (ALIFE_LOG_ON)
                     S1 += xr_sprintf(S1, " + $%d",
                                      iSum1 - iBalance - iSum2);
 #endif
@@ -943,8 +943,8 @@ bool CALifeCommunicationManager::bfCheckForInventoryCapacity(
                 tpALifeHumanAbstract2->m_dwMoney -= iSum1 - iBalance - iSum2;
             }
 
-#ifdef DEBUG
-            if (psAI_Flags.test(aiALife))
+#if defined(DEBUG) || defined(DEBUG_ALIFE)
+            if (ALIFE_LOG_ON)
                 Msg("%s\n Can trade!", S);
 #endif
             return (true);
@@ -1015,8 +1015,8 @@ bool CALifeCommunicationManager::bfCheckForTrade(
 
     if (I == E)
     {
-#ifdef DEBUG
-        if (psAI_Flags.test(aiALife))
+#if defined(DEBUG) || defined(DEBUG_ALIFE)
+        if (ALIFE_LOG_ON)
             Msg("Can't trade!\n");
 #endif
         return (false);
@@ -1032,8 +1032,8 @@ bool CALifeCommunicationManager::bfCheckIfCanNullTradersBalance(
 {
     if (!iBalance)
     {
-#ifdef DEBUG
-        if (psAI_Flags.test(aiALife))
+#if defined(DEBUG) || defined(DEBUG_ALIFE)
+        if (ALIFE_LOG_ON)
             Msg("Balance is null");
 #endif
         return (true);
@@ -1045,8 +1045,8 @@ bool CALifeCommunicationManager::bfCheckIfCanNullTradersBalance(
         {
             tpALifeHumanAbstract1->m_dwMoney += iBalance;
             tpALifeHumanAbstract2->m_dwMoney -= iBalance;
-#ifdef DEBUG
-            if (psAI_Flags.test(aiALife))
+#if defined(DEBUG) || defined(DEBUG_ALIFE)
+            if (ALIFE_LOG_ON)
                 Msg("Balance is covered by money");
 #endif
             return (true);
@@ -1057,8 +1057,8 @@ bool CALifeCommunicationManager::bfCheckIfCanNullTradersBalance(
         {
             tpALifeHumanAbstract1->m_dwMoney += iBalance;
             tpALifeHumanAbstract2->m_dwMoney -= iBalance;
-#ifdef DEBUG
-            if (psAI_Flags.test(aiALife))
+#if defined(DEBUG) || defined(DEBUG_ALIFE)
+            if (ALIFE_LOG_ON)
                 Msg("Balance is covered by money");
 #endif
             return (true);
@@ -1072,8 +1072,8 @@ bool CALifeCommunicationManager::bfCheckIfCanNullTradersBalance(
     std::sort(m_tpTrader2.begin(), m_tpTrader2.end(),
               CSortItemByValuePredicate());
 
-#ifdef DEBUG
-    if (psAI_Flags.test(aiALife))
+#if defined(DEBUG) || defined(DEBUG_ALIFE)
+    if (ALIFE_LOG_ON)
     {
         {
             string4096 S;
@@ -1102,8 +1102,8 @@ bool CALifeCommunicationManager::bfCheckIfCanNullTradersBalance(
     vfGenerateSums(m_tpTrader1, m_tpSums1);
     vfGenerateSums(m_tpTrader2, m_tpSums2);
 
-#ifdef DEBUG
-    if (psAI_Flags.test(aiALife))
+#if defined(DEBUG) || defined(DEBUG_ALIFE)
+    if (ALIFE_LOG_ON)
     {
         {
             string4096 S;
@@ -1548,10 +1548,10 @@ iSum2, int iMoney2, int iBalance)
 (!bfCheckForInventoryCapacity(tpALifeHumanAbstract1,tpTrader1,l_tpIndexes1,tpALifeHumanAbstract2,tpTrader2,l_tpIndexes2))
                 continue;
 
-#ifdef DEBUG
+#if defined(DEBUG) || defined(DEBUG_ALIFE)
             string4096		S;
             char			*S1 = S;
-            if (psAI_Flags.test(aiALife)) {
+            if (ALIFE_LOG_ON) {
                 S1				+= xr_sprintf(S1,"%s ->
 ",tpALifeHumanAbstract1->name_replace());
 
@@ -1562,8 +1562,8 @@ iSum2, int iMoney2, int iBalance)
             }
 #endif
             if (iSum1 < iBalance + iSum2) {
-#ifdef DEBUG
-                if (psAI_Flags.test(aiALife)) {
+#if defined(DEBUG) || defined(DEBUG_ALIFE)
+                if (ALIFE_LOG_ON) {
                     S1			+= xr_sprintf(S1," + $%d",iBalance +
 iSum2 - iSum1);
                 }
@@ -1573,8 +1573,8 @@ iBalance + iSum2 - iSum1); tpALifeHumanAbstract1->m_dwMoney -= iBalance + iSum2
 - iSum1; tpALifeHumanAbstract2->m_dwMoney += iBalance + iSum2 - iSum1;
             }
 
-#ifdef DEBUG
-            if (psAI_Flags.test(aiALife)) {
+#if defined(DEBUG) || defined(DEBUG_ALIFE)
+            if (ALIFE_LOG_ON) {
                 S1				+= xr_sprintf(S1,"\n%s ->
 ",tpALifeHumanAbstract2->name_replace());
 
@@ -1586,8 +1586,8 @@ iBalance + iSum2 - iSum1); tpALifeHumanAbstract1->m_dwMoney -= iBalance + iSum2
 #endif
 
             if (iSum1 > iBalance + iSum2) {
-#ifdef DEBUG
-                if (psAI_Flags.test(aiALife)) {
+#if defined(DEBUG) || defined(DEBUG_ALIFE)
+                if (ALIFE_LOG_ON) {
                     S1			+= xr_sprintf(S1," + $%d",iSum1 -
 iBalance - iSum2);
                 }
@@ -1597,8 +1597,8 @@ iBalance - iSum2);
 iSum2; tpALifeHumanAbstract2->m_dwMoney -= iSum1 - iBalance - iSum2;
             }
 
-#ifdef DEBUG
-            if (psAI_Flags.test(aiALife)) {
+#if defined(DEBUG) || defined(DEBUG_ALIFE)
+            if (ALIFE_LOG_ON) {
                 Msg			("%s\n Can trade!",S);
             }
 #endif
@@ -1658,8 +1658,8 @@ iMoney1, CSE_ALifeHumanAbstract *tpALifeHumanAbstract2, ITEM_P_VECTOR
     }
 
     if (I == E) {
-#ifdef DEBUG
-        if (psAI_Flags.test(aiALife)) {
+#if defined(DEBUG) || defined(DEBUG_ALIFE)
+        if (ALIFE_LOG_ON) {
             Msg				("Can't trade!\n");
         }
 #endif
@@ -1675,8 +1675,8 @@ CALifeCommunicationManager::bfCheckIfCanNullTradersBalance(CSE_ALifeHumanAbstrac
 iItemCount1, int iItemCount2, int iBalance)
 {
     if (!iBalance) {
-#ifdef DEBUG
-        if (psAI_Flags.test(aiALife)) {
+#if defined(DEBUG) || defined(DEBUG_ALIFE)
+        if (ALIFE_LOG_ON) {
             Msg			("Balance is null");
         }
 #endif
@@ -1687,8 +1687,8 @@ iItemCount1, int iItemCount2, int iBalance)
         if (int(tpALifeHumanAbstract1->m_dwMoney) >= -iBalance) {
             tpALifeHumanAbstract1->m_dwMoney += iBalance;
             tpALifeHumanAbstract2->m_dwMoney -= iBalance;
-#ifdef DEBUG
-            if (psAI_Flags.test(aiALife)) {
+#if defined(DEBUG) || defined(DEBUG_ALIFE)
+            if (ALIFE_LOG_ON) {
                 Msg		("Balance is covered by money");
             }
 #endif
@@ -1699,8 +1699,8 @@ iItemCount1, int iItemCount2, int iBalance)
         if (int(tpALifeHumanAbstract2->m_dwMoney) >= iBalance) {
             tpALifeHumanAbstract1->m_dwMoney += iBalance;
             tpALifeHumanAbstract2->m_dwMoney -= iBalance;
-#ifdef DEBUG
-            if (psAI_Flags.test(aiALife)) {
+#if defined(DEBUG) || defined(DEBUG_ALIFE)
+            if (ALIFE_LOG_ON) {
                 Msg			("Balance is covered by money");
             }
 #endif
@@ -1714,8 +1714,8 @@ iItemCount1, int iItemCount2, int iBalance)
 (m_tpTrader1.begin(),m_tpTrader1.end(),CSortItemByValuePredicate()); sort
 (m_tpTrader2.begin(),m_tpTrader2.end(),CSortItemByValuePredicate());
 
-#ifdef DEBUG
-        if (psAI_Flags.test(aiALife)) {
+#if defined(DEBUG) || defined(DEBUG_ALIFE)
+        if (ALIFE_LOG_ON) {
             {
                 string4096		S;
                 char			*S1 = S;
@@ -1743,8 +1743,8 @@ xr_sprintf(S1,"%6d",m_tpTrader2[i]->m_dwCost); Msg
         vfGenerateSums		(m_tpTrader1,m_tpSums1);
         vfGenerateSums		(m_tpTrader2,m_tpSums2);
 
-#ifdef DEBUG
-        if (psAI_Flags.test(aiALife)) {
+#if defined(DEBUG) || defined(DEBUG_ALIFE)
+        if (ALIFE_LOG_ON) {
             {
                 string4096		S;
                 char			*S1 = S;
@@ -1789,7 +1789,7 @@ tpObjectVector2.end()) tpObjectVector1.push_back(*I);
 void CALifeCommunicationManager::vfPerformTrading(CSE_ALifeHumanAbstract
 *tpALifeHumanAbstract1, CSE_ALifeHumanAbstract *tpALifeHumanAbstract2)
 {
-#ifdef DEBUG
+#if defined(DEBUG) || defined(DEBUG_ALIFE)
         VERIFY
 (tpALifeHumanAbstract1->check_inventory_consistency()); VERIFY
 (tpALifeHumanAbstract2->check_inventory_consistency()); #endif
@@ -1801,7 +1801,7 @@ void CALifeCommunicationManager::vfPerformTrading(CSE_ALifeHumanAbstract
     append_item_vector	(tpALifeHumanAbstract2->children,m_tpItems2);
 
 #ifdef DEBUG
-    if (psAI_Flags.test(aiALife)) {
+    if (ALIFE_LOG_ON) {
         vfPrintItems	(tpALifeHumanAbstract1,m_tpItems1);
         vfPrintItems	(tpALifeHumanAbstract2,m_tpItems2);
     }
@@ -1815,8 +1815,8 @@ dwfComputeItemCost(m_tpItems2) + tpALifeHumanAbstract2->m_dwMoney;
 (!(tpALifeHumanAbstract1->brain().m_dwTotalMoney*tpALifeHumanAbstract2->brain().m_dwTotalMoney))
 { tpALifeHumanAbstract1->brain().m_dwTotalMoney = u32(-1);
         tpALifeHumanAbstract2->brain().m_dwTotalMoney = u32(-1);
-#ifdef DEBUG
-        if (psAI_Flags.test(aiALife)) {
+#if defined(DEBUG) || defined(DEBUG_ALIFE)
+        if (ALIFE_LOG_ON) {
             Msg			("There is no money and valuable items to
 trade");
         }
@@ -1941,7 +1941,7 @@ remove_if(m_temp_item_vector.begin(),m_temp_item_vector.end(),CRemoveAttachedIte
         }
     }
 
-#ifdef DEBUG
+#if defined(DEBUG) || defined(DEBUG_ALIFE)
         VERIFY
 (tpALifeHumanAbstract1->check_inventory_consistency()); VERIFY
 (tpALifeHumanAbstract2->check_inventory_consistency()); #endif
@@ -1983,13 +1983,13 @@ l_iItemCount2,ifComputeBalance(tpALifeHumanAbstract1,m_tpItems2)
     vfAttachGatheredItems(tpALifeHumanAbstract1,m_tpBlockedItems1);
     vfAttachGatheredItems(tpALifeHumanAbstract2,m_tpBlockedItems2);
 #endif
-#ifdef DEBUG
+#if defined(DEBUG) || defined(DEBUG_ALIFE)
         VERIFY
 (tpALifeHumanAbstract1->check_inventory_consistency()); VERIFY
 (tpALifeHumanAbstract2->check_inventory_consistency()); #endif
 
 #ifdef DEBUG
-    if (psAI_Flags.test(aiALife)) {
+    if (ALIFE_LOG_ON) {
         vfPrintItems		(tpALifeHumanAbstract1);
         vfPrintItems		(tpALifeHumanAbstract2);
     }
@@ -2019,8 +2019,8 @@ E = l_tpALifeAbstractGroup->m_tpMembers.end(); for ( ; I != E; ++I)
     }
 
     // trade items
-#ifdef DEBUG
-    if (psAI_Flags.test(aiALife)) {
+#if defined(DEBUG) || defined(DEBUG_ALIFE)
+    if (ALIFE_LOG_ON) {
         Msg
 ("Selling all the items to %s",tpALifeTrader->name_replace());
     }
@@ -2091,8 +2091,8 @@ tpALifeHumanAbstract->brain().m_dwTotalMoney;
 (int(tpALifeTrader->m_dwMoney) >= 0,"Trader must have enough money to pay for
 the artefacts!");
 
-#ifdef DEBUG
-    if (psAI_Flags.test(aiALife)) {
+#if defined(DEBUG) || defined(DEBUG_ALIFE)
+    if (ALIFE_LOG_ON) {
         Msg
 ("Assigning correct parents");
     }

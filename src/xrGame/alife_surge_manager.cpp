@@ -7,6 +7,7 @@
 ////////////////////////////////////////////////////////////////////////////
 
 #include "StdAfx.h"
+#include "ai_debug.h"
 #include "alife_surge_manager.h"
 #include "alife_object_registry.h"
 #include "alife_spawn_registry.h"
@@ -40,8 +41,9 @@ void CALifeSurgeManager::spawn_new_spawns()
         timer.Start();
 #endif
         create(object, spawn, *I);
-#ifdef DEBUG
-        if (psAI_Flags.test(aiALife))
+#if defined(DEBUG) || defined(DEBUG_ALIFE)
+
+        if (ALIFE_LOG_ON)
             Msg("LSS : SURGE : SPAWN : [%s],[%s], level %s, time %f ms", spawn->s_name.c_str(), spawn->name_replace(),
                 ai().game_graph().header().level(ai().game_graph().vertex(spawn->m_tGraphID)->level_id()).name().c_str(),
                 timer.GetElapsed_sec() * 1000.f);

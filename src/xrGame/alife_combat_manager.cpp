@@ -8,6 +8,7 @@
 
 #include "alife_combat_manager.h"
 #include "StdAfx.h"
+#include "ai_debug.h"
 #include "alife_graph_registry.h"
 #include "alife_schedule_registry.h"
 #include "xrServer_Objects_ALife_Monsters.h"
@@ -231,8 +232,9 @@ bool CALifeCombatManager::bfCheckForInteraction(
   }
 
   // perform interaction
-#ifdef DEBUG
-  if (psAI_Flags.test(aiALife)) {
+#if defined(DEBUG) || defined(DEBUG_ALIFE)
+
+  if (ALIFE_LOG_ON) {
     GameGraph::_GRAPH_ID l_tGraphID =
         l_tpALifeMonsterAbstract1 ? l_tpALifeMonsterAbstract1->m_tGraphID
                                   : l_tpALifeMonsterAbstract2->m_tGraphID;
@@ -259,15 +261,17 @@ bool CALifeCombatManager::bfCheckForInteraction(
 
   if (bfCheckObjectDetection(tpALifeSchedulable1, tpALifeSchedulable2)) {
     iCombatGroupIndex = 0;
-#ifdef DEBUG
-    if (psAI_Flags.test(aiALife)) {
+#if defined(DEBUG) || defined(DEBUG_ALIFE)
+
+    if (ALIFE_LOG_ON) {
       Msg("[LSS] %s detected %s", tpALifeSchedulable1->base()->name_replace(),
           tpALifeSchedulable2->base()->name_replace());
     }
 #endif
   } else {
-#ifdef DEBUG
-    if (psAI_Flags.test(aiALife)) {
+#if defined(DEBUG) || defined(DEBUG_ALIFE)
+
+    if (ALIFE_LOG_ON) {
       Msg("[LSS] %s didn't detect %s",
           tpALifeSchedulable1->base()->name_replace(),
           tpALifeSchedulable2->base()->name_replace());
@@ -281,8 +285,9 @@ bool CALifeCombatManager::bfCheckForInteraction(
     m_combat_type = eCombatTypeMonsterAnomaly;
 
   if (bfCheckObjectDetection(tpALifeSchedulable2, tpALifeSchedulable1)) {
-#ifdef DEBUG
-    if (psAI_Flags.test(aiALife)) {
+#if defined(DEBUG) || defined(DEBUG_ALIFE)
+
+    if (ALIFE_LOG_ON) {
       Msg("[LSS] %s detected %s", tpALifeSchedulable2->base()->name_replace(),
           tpALifeSchedulable1->base()->name_replace());
     }
@@ -292,8 +297,9 @@ bool CALifeCombatManager::bfCheckForInteraction(
     else
       iCombatGroupIndex = 1;
   } else {
-#ifdef DEBUG
-    if (psAI_Flags.test(aiALife)) {
+#if defined(DEBUG) || defined(DEBUG_ALIFE)
+
+    if (ALIFE_LOG_ON) {
       Msg("[LSS] %s didn't detect %s",
           tpALifeSchedulable2->base()->name_replace(),
           tpALifeSchedulable1->base()->name_replace());
@@ -307,8 +313,9 @@ bool CALifeCombatManager::bfCheckForInteraction(
     m_combat_type = eCombatTypeMonsterAnomaly;
 
   if (iCombatGroupIndex < 0) {
-#ifdef DEBUG
-    if (psAI_Flags.test(aiALife)) {
+#if defined(DEBUG) || defined(DEBUG_ALIFE)
+
+    if (ALIFE_LOG_ON) {
       Msg("[LSS] There is no interaction");
     }
 #endif
@@ -353,8 +360,9 @@ void CALifeCombatManager::vfPerformAttackAction(int iCombatGroupIndex) {
 
     ai().ef_storage().alife().member_item() = smart_cast<CSE_ALifeObject *>(*I);
     ai().ef_storage().alife().member() = *I;
-#ifdef DEBUG
-    if (psAI_Flags.test(aiALife)) {
+#if defined(DEBUG) || defined(DEBUG_ALIFE)
+
+    if (ALIFE_LOG_ON) {
       Msg("[LSS] %s attacks with %s(%d ammo) %d times in a row",
           (*I)->base()->name_replace(),
           (*I)->m_tpCurrentBestWeapon
@@ -383,8 +391,9 @@ void CALifeCombatManager::vfPerformAttackAction(int iCombatGroupIndex) {
         l_tpALifeMonsterAbstract->set_health(
             l_tpALifeMonsterAbstract->get_health() -
             l_tpALifeMonsterAbstract->m_fpImmunityFactors[l_tHitType] * l_fHit);
-#ifdef DEBUG
-        if (psAI_Flags.test(aiALife)) {
+#if defined(DEBUG) || defined(DEBUG_ALIFE)
+
+        if (ALIFE_LOG_ON) {
           Msg("[LSS] %s %s %s [power %5.2f][damage %5.2f][health "
               "%5.2f][creatures left %d]",
               (*I)->base()->name_replace(),
@@ -407,8 +416,9 @@ void CALifeCombatManager::vfPerformAttackAction(int iCombatGroupIndex) {
             return;
         }
       } else {
-#ifdef DEBUG
-        if (psAI_Flags.test(aiALife)) {
+#if defined(DEBUG) || defined(DEBUG_ALIFE)
+
+        if (ALIFE_LOG_ON) {
           Msg("[LSS] %s missed", (*I)->base()->name_replace());
         }
 #endif
@@ -472,8 +482,9 @@ void CALifeCombatManager::vfFinishCombat(ECombatResult tCombatResult) {
 
   if (m_temp_item_vector.empty() ||
       (eCombatTypeMonsterMonster != combat_type())) {
-#ifdef DEBUG
-    if (psAI_Flags.test(aiALife)) {
+#if defined(DEBUG) || defined(DEBUG_ALIFE)
+
+    if (ALIFE_LOG_ON) {
       Msg("[LSS] There is nothing to take");
     }
 #endif
@@ -500,8 +511,9 @@ void CALifeCombatManager::vfFinishCombat(ECombatResult tCombatResult) {
   }
 
   if (l_iGroupIndex >= 0) {
-#ifdef DEBUG
-    if (psAI_Flags.test(aiALife)) {
+#if defined(DEBUG) || defined(DEBUG_ALIFE)
+
+    if (ALIFE_LOG_ON) {
       Msg("[LSS] Starting taking items [%s][%f]",
           m_tpaCombatObjects[l_iGroupIndex]->base()->name_replace(),
           smart_cast<CSE_ALifeMonsterAbstract *>(

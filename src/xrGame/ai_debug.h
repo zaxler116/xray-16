@@ -31,14 +31,14 @@
 #define aiDrawGameGraphStalkers (1 << 21)
 #define aiDrawGameGraphObjects (1 << 22)
 // XXX: restore (move to script engine)
-//# define aiNilObjectAccess            (1<<23)
+// # define aiNilObjectAccess            (1<<23)
 #define aiDebugOnFrameAllocs (1 << 25)
 #define aiDrawVisibilityRays (1 << 26)
 #define aiAnimationStats (1 << 27)
 #define aiDrawGameGraphRealPos (1 << 28)
 #endif // DEBUG
 
-#if defined(DEBUG) || !defined(MASTER_GOLD)
+#if defined(DEBUG) || defined(DEBUG_ALIFE) || !defined(MASTER_GOLD)
 #define aiALife (1 << 5)
 #define aiIgnoreActor (1 << 24)
 #define aiObstaclesAvoiding (1 << 28)
@@ -46,4 +46,11 @@
 #define aiUseSmartCovers (1 << 30)
 #define aiUseSmartCoversAnimationSlot (1 << 31)
 extern Flags32 psAI_Flags;
-#endif // defined(DEBUG) || !defined(MASTER_GOLD)
+// DEBUG_ALIFE: force-logs every ALife event to the console without needing
+// the runtime aiALife flag. Without it, logging is gated on psAI_Flags.
+#ifdef DEBUG_ALIFE
+#define ALIFE_LOG_ON true
+#else
+#define ALIFE_LOG_ON psAI_Flags.test(aiALife)
+#endif
+#endif // defined(DEBUG) || defined(DEBUG_ALIFE) || !defined(MASTER_GOLD)

@@ -1,3 +1,4 @@
+#include "ai_debug.h"
 ////////////////////////////////////////////////////////////////////////////
 //	Module 		: alife_spawn_registry_inline.h
 //	Created 	: 15.01.2003
@@ -19,8 +20,9 @@ IC void CALifeSpawnRegistry::assign_artefact_position(
     object->o_Position = m_artefact_spawn_positions[index].level_point();
     object->m_tNodeID = m_artefact_spawn_positions[index].level_vertex_id();
     object->m_fDistance = m_artefact_spawn_positions[index].distance();
-#ifdef DEBUG
-    if (psAI_Flags.test(aiALife))
+#if defined(DEBUG) || defined(DEBUG_ALIFE)
+
+    if (ALIFE_LOG_ON)
     {
         Msg("[LSS] Zone %s[%f][%f][%f] %d: generated artefact position %s[%f][%f][%f]", anomaly->name_replace(),
             VPUSH(anomaly->o_Position), anomaly->m_artefact_position_offset, object->name_replace(),

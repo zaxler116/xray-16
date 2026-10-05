@@ -7,6 +7,7 @@
 ////////////////////////////////////////////////////////////////////////////
 
 #include "StdAfx.h"
+#include "ai_debug.h"
 #include "xrServer_Objects_ALife.h"
 #include "alife_simulator.h"
 #include "alife_schedule_registry.h"
@@ -202,8 +203,9 @@ void CSE_ALifeInventoryBox::add_online(const bool& update_registries)
         CSE_Abstract* l_tpAbstract = smart_cast<CSE_Abstract*>(l_tpALifeInventoryItem);
         object->alife().server().entity_Destroy(l_tpAbstract);
 
-#ifdef DEBUG
-        //		if (psAI_Flags.test(aiALife))
+#if defined(DEBUG) || defined(DEBUG_ALIFE)
+
+        //		if (ALIFE_LOG_ON)
         //			Msg					("[LSS] Spawning item
         //[%s][%s][%d]",l_tpALifeInventoryItem->base()->name_replace(),*l_tpALifeInventoryItem->base()->s_name,l_tpALifeDynamicObject->ID);
         Msg("[LSS][%d] Going online [%d][%s][%d] with parent [%d][%s] on '%s'", Device.dwFrame, Device.dwTimeGlobal,
@@ -235,8 +237,9 @@ void CSE_ALifeInventoryBox::add_offline(
 
         CSE_ALifeInventoryItem* inventory_item = smart_cast<CSE_ALifeInventoryItem*>(child);
         VERIFY2(inventory_item, "Non inventory item object has parent?!");
-#ifdef DEBUG
-        //		if (psAI_Flags.test(aiALife))
+#if defined(DEBUG) || defined(DEBUG_ALIFE)
+
+        //		if (ALIFE_LOG_ON)
         //			Msg					("[LSS] Destroying item
         //[%s][%s][%d]",inventory_item->base()->name_replace(),*inventory_item->base()->s_name,inventory_item->base()->ID);
         Msg("[LSS][%d] Going offline [%d][%s][%d] with parent [%d][%s] on '%s'", Device.dwFrame, Device.dwTimeGlobal,
