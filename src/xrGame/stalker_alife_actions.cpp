@@ -477,6 +477,37 @@ void CStalkerActionTradeWithTrader::apply_trade_item(int index, bool giving)
     (void)giving;
 }
 
+
+//////////////////////////////////////////////////////////////////////////
+// V4.3 - common interrupt check for the animated trade actions.
+// Returns true when the trade must be aborted immediately:
+//   - a real enemy is known (combat / alarm),
+//   - the trade partner died or left the visible area.
+// The planner then drops this action and the stalker does the
+// higher-priority thing (danger action / pathing), then returns to trade.
+//////////////////////////////////////////////////////////////////////////
+namespace
+{
+    bool v43_trade_interrupted(CAI_Stalker& self, const CEntity* partner)
+    {
+        // partner is gone (died or no longer visible)
+        if (!partner || !partner->g_Alive())
+            return true;
+        // a real enemy is known -> combat / alarm
+        if (self.memory().enemy().selected())
+            return true;
+        // wounded: fresh hit (health loss > 0.02f) or bleeding (speed > 0.1f)
+        CEntityAlive* ea = smart_cast<CEntityAlive*>(&self);
+        if (ea)
+        {
+            if (ea->conditions().GetHealthLost() > 0.02f)
+                return true;
+            if (ea->conditions().BleedingSpeed() > 0.1f)
+                return true;
+        }
+        return false;
+    }
+} // namespace
 void CStalkerActionTradeWithTrader::execute()
 {
     inherited::execute();
@@ -514,6 +545,23 @@ void CStalkerActionTradeWithTrader::execute()
     object().movement().set_movement_type(eMovementTypeStand);
     object().movement().set_mental_state(eMentalStateFree);
     object().sight().setup(CSightAction(SightManager::eSightTypeObject, smart_cast<const CGameObject*>(m_trader_target), true));
+
+    // V4.3 - interrupt the trade on alarm / combat / wound
+    if (v43_trade_interrupted(object(), m_trader_target))
+    {
+        object().movement().set_desired_position(0);
+        object().movement().set_mental_state(MonsterSpace::eMentalStateFree);
+        return;
+    }
+
+    // V4.3 - lock the body during the whole transfer (no movement, no crouch)
+    if (m_trade_phase != eTradePhaseDone)
+    {
+        object().movement().set_desired_position(0);
+        object().movement().set_desired_direction(0);
+        object().movement().set_body_state(eBodyStateStand);
+        object().movement().set_movement_type(eMovementTypeStand);
+    }
 
     // V2.1 - trade state machine:
     //  Approach -> Compute (mirror in + plan + communicate) ->
@@ -983,6 +1031,23 @@ void CStalkerActionTradeWithSquad::execute()
     object().movement().set_mental_state(eMentalStateFree);
     object().sight().setup(CSightAction(SightManager::eSightTypeObject, smart_cast<const CGameObject*>(m_partner_target), true));
 
+    // V4.3 - interrupt the trade on alarm / combat / wound
+    if (v43_trade_interrupted(object(), m_partner_target))
+    {
+        object().movement().set_desired_position(0);
+        object().movement().set_mental_state(MonsterSpace::eMentalStateFree);
+        return;
+    }
+
+    // V4.3 - lock the body during the whole transfer (no movement, no crouch)
+    if (m_trade_phase != eTradePhaseDone)
+    {
+        object().movement().set_desired_position(0);
+        object().movement().set_desired_direction(0);
+        object().movement().set_body_state(eBodyStateStand);
+        object().movement().set_movement_type(eMovementTypeStand);
+    }
+
     if (!m_trade_time)
         m_trade_phase = eTradePhaseCompute;
 
@@ -1406,3 +1471,4 @@ void CStalkerActionGatherItems::execute()
 
     object().sight().setup(SightManager::eSightTypePosition, &object().memory().item().selected()->Position());
 }
+
