@@ -27,6 +27,27 @@ public:
 };
 
 //////////////////////////////////////////////////////////////////////////
+// CStalkerActionSquadGreeting
+//////////////////////////////////////////////////////////////////////////
+
+class CStalkerActionSquadGreeting : public CStalkerActionBase
+{
+protected:
+    typedef CStalkerActionBase inherited;
+
+    const CEntity* m_greeting_target;
+    u32 m_greeting_start_time;
+    bool m_dialog_said;
+    float m_approach_distance_sqr;
+
+public:
+    CStalkerActionSquadGreeting(CAI_Stalker* object, LPCSTR action_name = "");
+    virtual void initialize();
+    virtual void execute();
+    virtual void finalize();
+};
+
+//////////////////////////////////////////////////////////////////////////
 // CStalkerActionNoALife
 //////////////////////////////////////////////////////////////////////////
 
