@@ -160,6 +160,10 @@ public:
   // Stage 4.7: live (2003 logic, adapted to the 2005 API)
   void vfPerformTrading(CSE_ALifeHumanAbstract *tpALifeHumanAbstract1,
                         CSE_ALifeHumanAbstract *tpALifeHumanAbstract2);
+  // N.4: only surplus items (CALifeHumanObjectHandler::item_is_keepable)
+  // of a human are offered into the trade pool
+  void append_keepable_items(CSE_ALifeHumanAbstract *tpALifeHumanAbstract,
+                             ALife::ITEM_P_VECTOR &tpItemList);
   void vfAppendBlockedItems(CSE_ALifeHumanAbstract *tpALifeHumanAbstract,
                             ALife::OBJECT_VECTOR &tpObjectVector1,
                             ALife::OBJECT_VECTOR &tpObjectVector2,

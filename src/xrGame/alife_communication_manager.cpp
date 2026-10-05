@@ -417,6 +417,32 @@ void CALifeCommunicationManager::vfAppendBlockedItems(
 // the registry lives on the global ai() singleton, so we go through
 // ai().alife().objects(). m_temp_item_vector is a public field on
 // CALifeSimulator, reached via const_cast.
+// N.4: the 2003 engine offered ALL children of both humans into the trade
+// pool. Now each human keeps its personal gear and minimum stock (see
+// CALifeHumanObjectHandler::item_is_keepable) - only surplus items enter
+// the pool, so the choose_* passes can only pick what a human is willing
+// to part with. Personal items are not offered (they stay with the owner
+// after vfDetachAll/vfAttachOwnerItems) and their cost is not counted in
+// m_dwTotalMoney, which also prevents the balance from being skewed by
+// unequippable items.
+void CALifeCommunicationManager::append_keepable_items(
+    CSE_ALifeHumanAbstract *tpALifeHumanAbstract,
+    ALife::ITEM_P_VECTOR &tpItemList)
+{
+  ALife::OBJECT_IT I = tpALifeHumanAbstract->children.begin();
+  ALife::OBJECT_IT E = tpALifeHumanAbstract->children.end();
+  for (; I != E; ++I)
+  {
+    CSE_ALifeInventoryItem *l_tpItem =
+        smart_cast<CSE_ALifeInventoryItem *>(ai().alife().objects().object(*I));
+    if (!l_tpItem)
+      continue;
+    if (tpALifeHumanAbstract->brain().objects().item_is_keepable(l_tpItem,
+                                                                tpALifeHumanAbstract))
+      tpItemList.push_back(l_tpItem);
+  }
+}
+
 void CALifeCommunicationManager::vfPerformTrading(
     CSE_ALifeHumanAbstract *tpALifeHumanAbstract1,
     CSE_ALifeHumanAbstract *tpALifeHumanAbstract2)
@@ -432,8 +458,9 @@ void CALifeCommunicationManager::vfPerformTrading(
   m_tpItems1.clear();
   m_tpItems2.clear();
 
-  append_item_vector(tpALifeHumanAbstract1->children, m_tpItems1);
-  append_item_vector(tpALifeHumanAbstract2->children, m_tpItems2);
+  // N.4: only keepable (non-personal, above minimum stock) items are offered
+  append_keepable_items(tpALifeHumanAbstract1, m_tpItems1);
+  append_keepable_items(tpALifeHumanAbstract2, m_tpItems2);
 
 #if defined(DEBUG) || defined(DEBUG_ALIFE)
   if (ALIFE_LOG_ON)
