@@ -597,10 +597,12 @@ void CStalkerActionTradeWithTrader::execute()
     case eTradePhaseReceiveItemsP1:
     {
         // NPC's phases: play the hand-over animation, timed by m_animation_duration_ms
-        // hard cap: timeout per phase
+        // hard cap: timeout per phase (V2.3 - stop the animation on timeout too,
+        // otherwise the NPC stays in the hand-over pose until finalize)
         if (m_trade_time && Device.dwTimeGlobal - m_phase_start_time > m_phase_timeout_ms)
         {
-            finish_hand_over_animation();
+            if (m_current_item_go)
+                finish_hand_over_animation();
             m_animation_item_index = 0;
             if (m_trade_phase == eTradePhaseGiveItemsP1)
                 m_trade_phase = eTradePhaseReceiveItemsP1;
