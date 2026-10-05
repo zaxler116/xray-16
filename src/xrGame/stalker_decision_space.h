@@ -19,6 +19,7 @@ enum EWorldProperties : u32 {
 
   eWorldPropertySmartTerrainTask,
   eWorldPropertySquadGreeting,
+  eWorldPropertyTradeWithTrader,
   eWorldPropertyItems,
   eWorldPropertyEnemy,
   eWorldPropertyDanger,
@@ -110,6 +111,7 @@ enum EWorldOperators {
   eWorldOperatorALifeEmulation,
   eWorldOperatorSmartTerrainTask,
   eWorldOperatorSquadGreeting,
+  eWorldOperatorTradeWithTrader,
 
   // alife : tasks
   eWorldOperatorSolveZonePuzzle,
