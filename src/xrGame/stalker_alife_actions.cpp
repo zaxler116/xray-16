@@ -208,9 +208,10 @@ CStalkerActionTradeWithTrader::CStalkerActionTradeWithTrader(CAI_Stalker* object
     : inherited(object, action_name),
       m_trader_target(0), m_alife_human(0), m_alife_trader(0),
       m_trade_time(0), m_approach_distance_sqr(2.5f * 2.5f),
-      m_trade_phase(eTradePhaseApproach), m_animation_start_time(0),
+      m_trade_phase(eTradePhaseApproach), m_phase_start_time(0),
       m_current_item_go(0), m_animation_item_index(0), m_max_animation_items(5),
-      m_hand_over_animation("zat_b14_give_artefact_act"), m_animation_duration_ms(3000)
+      m_hand_over_animation("zat_b14_give_artefact_act"), m_animation_duration_ms(3000),
+      m_phase_timeout_ms(60000)
 {
 }
 
@@ -220,12 +221,14 @@ void CStalkerActionTradeWithTrader::initialize()
 
     m_trade_time = 0;
     m_trade_phase = eTradePhaseApproach;
-    m_animation_start_time = 0;
+    m_phase_start_time = 0;
     m_current_item_go = 0;
     m_current_item_section = "";
     m_animation_item_index = 0;
-    m_give_items.clear();
-    m_receive_items.clear();
+    m_give_items_p1.clear();
+    m_receive_items_p1.clear();
+    m_give_items_p2.clear();
+    m_receive_items_p2.clear();
 
     // find the nearest ALife trader (same logic as the evaluator)
     m_trader_target = 0;
@@ -291,8 +294,8 @@ void CStalkerActionTradeWithTrader::finalize()
     if (!object().g_Alive())
         return;
 
-    // V1.1 - stop animation if in progress
-    if (m_trade_phase == eTradePhaseGiveItems || m_trade_phase == eTradePhaseReceiveItems)
+    // V1.1 - stop animation if in progress (NPC's phases play visible animations)
+    if (m_trade_phase == eTradePhaseGiveItemsP1 || m_trade_phase == eTradePhaseReceiveItemsP1)
     {
         object().animation().clear_script_animations();
         if (m_current_item_go)
@@ -314,7 +317,7 @@ void CStalkerActionTradeWithTrader::start_hand_over_animation(CGameObject* item,
 {
     m_current_item_go = item;
     m_current_item_section = section_id;
-    m_animation_start_time = Device.dwTimeGlobal;
+    m_phase_start_time = Device.dwTimeGlobal;
 
     // V1.1 - set weapon to idle
     if (object().inventory().ActiveItem())

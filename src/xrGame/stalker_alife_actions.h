@@ -60,8 +60,14 @@ protected:
     {
         eTradePhaseApproach,
         eTradePhaseCompute,
-        eTradePhaseGiveItems,
-        eTradePhaseReceiveItems,
+        // V2.1 - participant 1 (the NPC): hand over the items it sells
+        eTradePhaseGiveItemsP1,
+        // V2.1 - participant 1 (the NPC): receive the items it buys
+        eTradePhaseReceiveItemsP1,
+        // V2.1 - participant 2 (the trader): hand over the items it sells
+        eTradePhaseGiveItemsP2,
+        // V2.1 - participant 2 (the trader): receive the items it buys
+        eTradePhaseReceiveItemsP2,
         eTradePhaseMirrorBack,
         eTradePhaseDone
     };
@@ -74,7 +80,7 @@ protected:
 
     // V1.1 - animation state
     ETradePhase m_trade_phase;
-    u32 m_animation_start_time;
+    u32 m_phase_start_time;
     CGameObject* m_current_item_go;
     shared_str m_current_item_section;
     int m_animation_item_index;
@@ -83,16 +89,21 @@ protected:
     // V1.1 - config
     LPCSTR m_hand_over_animation;
     u32 m_animation_duration_ms;
+    u32 m_phase_timeout_ms;
 
-    // V1.2 - trade plan: what the NPC gives/receives, by distinct item type
+    // V1.2/V2.1 - trade plan: what each participant gives/receives, by distinct item type
     struct STradeAnimItem
     {
         CGameObject* m_go;
         shared_str m_section;
     };
     typedef xr_vector<STradeAnimItem> TRADE_ANIM_ITEMS;
-    TRADE_ANIM_ITEMS m_give_items;
-    TRADE_ANIM_ITEMS m_receive_items;
+    // participant 1 = the NPC (client side, visible animations)
+    TRADE_ANIM_ITEMS m_give_items_p1;
+    TRADE_ANIM_ITEMS m_receive_items_p1;
+    // participant 2 = the trader (server side, no animations, timing only)
+    TRADE_ANIM_ITEMS m_give_items_p2;
+    TRADE_ANIM_ITEMS m_receive_items_p2;
 
 public:
     CStalkerActionTradeWithTrader(CAI_Stalker* object, LPCSTR action_name = "");
@@ -107,6 +118,11 @@ private:
     void apply_trade_item(int index, bool giving);
     void mirror_client_to_alife();
     void mirror_alife_to_client();
+    // V2.1 - animation phases
+    bool in_animation_phase() const;
+    const TRADE_ANIM_ITEMS& current_list() const;
+    int current_list_size() const;
+    void on_animation_phase_complete();
 };
 
 //////////////////////////////////////////////////////////////////////////
