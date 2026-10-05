@@ -61,6 +61,15 @@ bool CStateMonsterSmartTerrainTaskAbstract::check_start_conditions()
     if (monster->m_task_reached)
         return false;
 
+    // V3.1: check world knowledge - should I go given remembered enemies?
+    CAI_Stalker* stalker = smart_cast<CAI_Stalker*>(this->object);
+    if (stalker)
+    {
+        CALifeSmartTerrainTask* t = monster->brain().smart_terrain().task(monster);
+        if (t && !stalker->bfShouldGoToTask(t))
+            return false;
+    }
+
     return true;
 }
 

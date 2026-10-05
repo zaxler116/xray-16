@@ -30,6 +30,10 @@
 #include "danger_manager.h"
 #include "visual_memory_manager.h"
 #include "agent_enemy_manager.h"
+#include "world_knowledge_manager.h"
+#include "alife_object_registry.h"
+#include "alife_smart_terrain_task.h"
+#include "alife_human_object_handler.h"
 
 const u32 TOLLS_INTERVAL = 2000;
 const u32 GRENADE_INTERVAL = 0 * 1000;
@@ -211,4 +215,84 @@ void CAI_Stalker::process_enemies()
         memory().make_object_visible_somewhen(member->memory().enemy().selected());
         break;
     }
+}
+//////////////////////////////////////////////////////////////////////////////
+// V3.1: "should I go to this target smart terrain?"
+//
+// The NPC checks its persistent world knowledge (CWorldKnowledgeManager):
+// how many enemies it remembers near the task position. If there are
+// remembered enemies, it estimates whether it (with its squad) can handle
+// them: combat_power_estimate() per enemy vs. total enemy count.
+//
+//   0 enemies  -> go
+//   N enemies  -> go if N <= squad_size && combat_power_estimate() for a
+//                 representative enemy (strongest known class)
+//
+// The representative enemy is picked as the class with the worst known
+// relation (WorstEnemy > Enemy). If no class info is available, the
+// estimate falls back to "can fight 1 enemy" (combat_power_estimate with
+// the first remembered enemy's ALife object).
+//
+// NOTE: this is a heuristic; V3.2 will add per-enemy-class estimates and
+// distance-weighted danger.
+bool CAI_Stalker::bfShouldGoToTask(CALifeSmartTerrainTask* task) const
+{
+    if (!task)
+        return true;
+
+    const CCustomMonster* self = this;
+    CSE_ALifeMonsterAbstract* monster =
+        smart_cast<CSE_ALifeMonsterAbstract*>(ai().alife().objects().object(self->ID()));
+    if (!monster)
+        return true;
+
+    // only humans (stalker/trader) have world knowledge + combat estimate
+    CSE_ALifeHumanAbstract* human = smart_cast<CSE_ALifeHumanAbstract*>(monster);
+    if (!human)
+        return true;
+
+    Fvector target_pos = task->position();
+    const CWorldKnowledgeManager& knowledge = memory().world();
+    int enemies = knowledge.enemies_near(target_pos, 50.f);
+    if (enemies <= 0)
+        return true;
+
+    // squad size (how many can fight alongside me)
+    int squad_size = 1;
+    if (agent_manager().member().members().size() > 0)
+        squad_size = (int)agent_manager().member().members().size();
+
+    // too many enemies for my squad
+    if (enemies > squad_size)
+        return false;
+
+    // find a representative enemy (worst relation) from remembered points
+    ALife::ERelationType worst_rel = ALife::eRelationTypeNeutral;
+    u16 rep_id = ALife::_OBJECT_ID(-1);
+    for (const CWorldKnowledgeManager::SWorldKnowledgePoint& p : knowledge.points())
+    {
+        if (p.position.distance_to_sqr(target_pos) > 2500.f) // 50^2
+            continue;
+        ALife::ERelationType rel =
+            (u8)p.relation_for_me >= (u8)p.relation_to_me ? p.relation_for_me : p.relation_to_me;
+        if (rel != ALife::eRelationTypeEnemy && rel != ALife::eRelationTypeWorstEnemy)
+            continue;
+        if ((u8)rel > (u8)worst_rel)
+        {
+            worst_rel = rel;
+            rep_id = p.creature_object_id;
+        }
+    }
+    if (rep_id == ALife::_OBJECT_ID(-1))
+        return true;
+
+    // representative enemy's ALife object (for m_fMaxHealthValue)
+    CSE_ALifeMonsterAbstract* rep_enemy =
+        smart_cast<CSE_ALifeMonsterAbstract*>(ai().alife().objects().object(rep_id));
+    if (!rep_enemy)
+        return false;
+
+    // can I (with my best weapon + ammo) handle one such enemy?
+    CALifeHumanObjectHandler handler(human);
+    return handler.combat_power_estimate(human, rep_enemy);
 }

@@ -237,6 +237,11 @@ public:
     void DropItemSendMessage(IGameObject* O);
     bool bfCheckForNodeVisibility(u32 dwNodeID, bool bIfRyPick = false);
     virtual ALife::ERelationType tfGetRelationType(const CEntityAlive* tpEntityAlive) const;
+
+    // V3.1: should I go to the target smart terrain task, given what I
+    // remember about enemies near it (world knowledge) and my own combat
+    // power? false => refuse the task.
+    bool bfShouldGoToTask(CALifeSmartTerrainTask* task) const;
     virtual const SRotation Orientation() const;
     virtual const MonsterSpace::SBoneRotation& head_orientation() const;
 
