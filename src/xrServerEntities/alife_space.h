@@ -179,7 +179,6 @@ constexpr EHitType g_tfInfluenceType2HitType(EInfluenceType tInfluenceType) {
   return eHitTypeMax;
 }
 
-
 using INT_VECTOR = xr_vector<int>;
 using OBJECT_VECTOR = xr_vector<_OBJECT_ID>;
 using OBJECT_IT = OBJECT_VECTOR::iterator;

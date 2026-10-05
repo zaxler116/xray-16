@@ -8,6 +8,7 @@
 
 #include "StdAfx.h"
 #include "alife_human_object_handler.h"
+#include "alife_communication_space.h"
 #include "alife_object_registry.h"
 #include "xrServer_Objects_ALife_Monsters.h"
 
@@ -19,13 +20,8 @@
 #include "ef_primary.h"
 #include "ef_pattern.h"
 
-// 2003: removed from the item list the items already attached to the
-// object (used by the choose_* methods after each pick-up pass).
-struct CRemoveAttachedItemsPredicate {
-  IC bool operator()(const CSE_ALifeInventoryItem *item) {
-    return (item->attached());
-  };
-};
+// CRemoveAttachedItemsPredicate now lives in alife_communication_space.h
+// (shared with the communication manager, Stage 4.7).
 
 // Stage 2.1: count the ammo of the given weapon section the object carries
 // (2003 CSE_ALifeHumanAbstract::get_available_ammo_count, save L171-185).

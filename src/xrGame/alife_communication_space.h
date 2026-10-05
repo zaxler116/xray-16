@@ -10,5 +10,11 @@
 
 #include "xrServer_Objects_ALife_Items.h"
 
-// Stage 3.4: CRemoveAttachedItemsPredicate moved to alife_space.h
-// (the human object handler needs it before Stage 4).
+// 2003: removed from the item list the items already attached to the
+// object (used by the choose_* methods of the human object handler and by
+// the communication manager while trading).
+struct CRemoveAttachedItemsPredicate {
+  IC bool operator()(const CSE_ALifeInventoryItem *item) {
+    return (item->attached());
+  };
+};
