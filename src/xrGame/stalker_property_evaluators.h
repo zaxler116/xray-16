@@ -309,6 +309,26 @@ public:
 };
 
 //////////////////////////////////////////////////////////////////////////
+// CStalkerPropertyEvaluatorTradeWithSquad (V2.4)
+//////////////////////////////////////////////////////////////////////////
+
+class CStalkerPropertyEvaluatorTradeWithSquad : public CStalkerPropertyEvaluator
+{
+protected:
+    typedef CStalkerPropertyEvaluator inherited;
+
+    float m_distance;
+    float m_distance_sqr;
+    u32 m_last_trade_time;
+    const CEntity* m_squad_target;
+
+public:
+    CStalkerPropertyEvaluatorTradeWithSquad(CAI_Stalker* object = 0, LPCSTR evaluator_name = "");
+    virtual _value_type evaluate();
+    const CEntity* squad_target() const { return m_squad_target; }
+};
+
+//////////////////////////////////////////////////////////////////////////
 // CStalkerPropertyEvaluatorEnemyReached
 //////////////////////////////////////////////////////////////////////////
 

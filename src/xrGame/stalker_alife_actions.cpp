@@ -713,6 +713,538 @@ void CStalkerActionTradeWithTrader::on_animation_phase_complete()
     m_phase_start_time = Device.dwTimeGlobal;
     m_animation_item_index = 0;
 }
+//////////////////////////////////////////////////////////////////////////
+// CStalkerActionTradeWithSquad (V2.4)
+//////////////////////////////////////////////////////////////////////////
+
+CStalkerActionTradeWithSquad::CStalkerActionTradeWithSquad(CAI_Stalker* object, LPCSTR action_name)
+    : inherited(object, action_name),
+      m_partner_target(0), m_alife_human(0), m_alife_partner(0),
+      m_trade_time(0), m_approach_distance_sqr(2.5f * 2.5f),
+      m_trade_phase(eTradePhaseApproach), m_phase_start_time(0),
+      m_current_item_go(0), m_animation_item_index(0), m_max_animation_items(5),
+      m_hand_over_animation("zat_b14_give_artefact_act"), m_animation_duration_ms(3000),
+      m_phase_timeout_ms(60000)
+{
+}
+
+void CStalkerActionTradeWithSquad::initialize()
+{
+    inherited::initialize();
+
+    m_trade_time = 0;
+    m_trade_phase = eTradePhaseApproach;
+    m_phase_start_time = 0;
+    m_current_item_go = 0;
+    m_current_item_section = "";
+    m_animation_item_index = 0;
+    m_give_items_p1.clear();
+    m_receive_items_p1.clear();
+    m_give_items_p2.clear();
+    m_receive_items_p2.clear();
+
+    // find the nearest partner from another squad (same logic as the evaluator)
+    m_partner_target = 0;
+    m_alife_partner = 0;
+    float best_dist_sqr = 30.f * 30.f;
+    const CVisualMemoryManager::RAW_VISIBLES& visibles = object().memory().visual().raw_objects();
+    for (CVisualMemoryManager::RAW_VISIBLES::const_iterator i = visibles.begin(); i != visibles.end(); ++i)
+    {
+        const CEntity* e = smart_cast<const CEntity*>(*i);
+        if (!e || !e->g_Alive())
+            continue;
+        if (e->ID() == object().ID())
+            continue;
+        if (e->g_Squad() == object().g_Squad())
+            continue;
+        if (!smart_cast<const CAI_Stalker*>(e))
+            continue;
+        const CInventoryOwner* io = smart_cast<const CInventoryOwner*>(e);
+        if (!io)
+            continue;
+        if (RELATION_REGISTRY().GetCommunityRelation(object().Community(), io->Community()) < 0)
+            continue;
+        CSE_ALifeHumanAbstract* partner_human =
+            smart_cast<CSE_ALifeHumanAbstract*>(ai().alife().objects().object(e->ID()));
+        if (!partner_human)
+            continue;
+        float dist_sqr = object().Position().distance_to_sqr(e->Position());
+        if (dist_sqr > best_dist_sqr)
+            continue;
+        m_partner_target = e;
+        m_alife_partner = partner_human;
+        best_dist_sqr = dist_sqr;
+    }
+
+    m_alife_human =
+        smart_cast<CSE_ALifeHumanAbstract*>(ai().alife().objects().object(object().ID()));
+
+    if (!m_partner_target || !m_alife_human || !m_alife_partner)
+    {
+        object().movement().set_desired_position(0);
+        object().movement().set_desired_direction(0);
+        object().movement().set_body_state(eBodyStateStand);
+        object().movement().set_movement_type(eMovementTypeStand);
+        object().movement().set_mental_state(eMentalStateFree);
+        object().sight().setup(CSightAction(SightManager::eSightTypeCurrentDirection));
+        return;
+    }
+
+    // face the partner and stand
+    object().movement().set_desired_position(0);
+    object().movement().set_desired_direction(0);
+    object().movement().set_body_state(eBodyStateStand);
+    object().movement().set_movement_type(eMovementTypeStand);
+    object().movement().set_mental_state(eMentalStateFree);
+    object().sight().setup(CSightAction(SightManager::eSightTypeObject, smart_cast<const CGameObject*>(m_partner_target), true));
+
+    if (!object().inventory().ActiveItem())
+        object().CObjectHandler::set_goal(eObjectActionIdle);
+    else
+        object().CObjectHandler::set_goal(eObjectActionIdle, object().inventory().ActiveItem());
+}
+
+void CStalkerActionTradeWithSquad::finalize()
+{
+    inherited::finalize();
+
+    object().movement().set_desired_position(0);
+    object().sight().setup(SightManager::eSightTypePathDirection);
+
+    if (!object().g_Alive())
+        return;
+
+    // stop animation if in progress
+    if (m_trade_phase == eTradePhaseGiveItemsP1 || m_trade_phase == eTradePhaseReceiveItemsP1)
+    {
+        object().animation().clear_script_animations();
+        if (m_current_item_go)
+        {
+            CInventoryItem* inv_item = smart_cast<CInventoryItem*>(m_current_item_go);
+            if (inv_item)
+            {
+                CAttachableItem* attachable = inv_item->cast_attachable_item();
+                if (attachable)
+                    attachable->enable(false);
+            }
+        }
+    }
+
+    object().sound().remove_active_sounds(u32(eStalkerSoundMaskNoHumming));
+}
+
+void CStalkerActionTradeWithSquad::start_hand_over_animation(CGameObject* item, LPCSTR section_id)
+{
+    m_current_item_go = item;
+    m_current_item_section = section_id;
+    m_phase_start_time = Device.dwTimeGlobal;
+
+    if (object().inventory().ActiveItem())
+        object().CObjectHandler::set_goal(eObjectActionIdle, object().inventory().ActiveItem());
+    else
+        object().CObjectHandler::set_goal(eObjectActionIdle);
+
+    object().animation().add_script_animation(m_hand_over_animation, false, false);
+
+    if (item)
+    {
+        CInventoryItem* inv_item = smart_cast<CInventoryItem*>(item);
+        if (inv_item)
+        {
+            CAttachableItem* attachable = inv_item->cast_attachable_item();
+            if (attachable)
+                attachable->enable(true);
+        }
+    }
+}
+
+void CStalkerActionTradeWithSquad::finish_hand_over_animation()
+{
+    if (m_current_item_go)
+    {
+        CInventoryItem* inv_item = smart_cast<CInventoryItem*>(m_current_item_go);
+        if (inv_item)
+        {
+            CAttachableItem* attachable = inv_item->cast_attachable_item();
+            if (attachable)
+                attachable->enable(false);
+        }
+    }
+
+    object().animation().clear_script_animations();
+
+    m_current_item_go = 0;
+    m_current_item_section = "";
+}
+
+void CStalkerActionTradeWithSquad::mirror_client_to_alife(CAI_Stalker* npc, CSE_ALifeHumanAbstract* alife_human)
+{
+    CInventoryItem* item = 0;
+    while ((item = npc->inventory().tpfGetObjectByIndex(0)) != 0)
+    {
+        CGameObject* go = smart_cast<CGameObject*>(item);
+        if (!go)
+            continue;
+        CSE_ALifeInventoryItem* alife_item =
+            smart_cast<CSE_ALifeInventoryItem*>(ai().alife().objects().object(go->ID()));
+        if (!alife_item)
+        {
+            npc->inventory().DropItem(go, true, true);
+            continue;
+        }
+        npc->inventory().DropItem(go, true, true);
+        alife_human->attach(alife_item, true);
+    }
+    alife_human->m_dwMoney = npc->get_money();
+}
+
+void CStalkerActionTradeWithSquad::mirror_alife_to_client(CAI_Stalker* npc, CSE_ALifeHumanAbstract* alife_human)
+{
+    u32 money = alife_human->m_dwMoney;
+    ALife::OBJECT_VECTOR taken;
+    ALife::OBJECT_IT I = alife_human->children.begin();
+    ALife::OBJECT_IT E = alife_human->children.end();
+    for (; I != E; ++I)
+    {
+        CSE_ALifeInventoryItem* alife_item =
+            smart_cast<CSE_ALifeInventoryItem*>(ai().alife().objects().object(*I));
+        if (!alife_item)
+            continue;
+        CGameObject* go = smart_cast<CGameObject*>(ai().alife().objects().object(*I));
+        if (!go)
+            continue;
+        npc->inventory().Take(go, true, false);
+        taken.push_back(*I);
+    }
+    for (ALife::OBJECT_VECTOR::iterator J = taken.begin(); J != taken.end(); ++J)
+    {
+        CSE_ALifeInventoryItem* alife_item =
+            smart_cast<CSE_ALifeInventoryItem*>(ai().alife().objects().object(*J));
+        alife_human->detach(alife_item, 0, true, false);
+    }
+    npc->set_money(money, true);
+}
+
+void CStalkerActionTradeWithSquad::execute()
+{
+    inherited::execute();
+
+    if (!object().g_Alive())
+        return;
+
+    if (!m_partner_target || !m_alife_human || !m_alife_partner)
+        return;
+
+    if (!m_partner_target->g_Alive())
+    {
+        m_partner_target = 0;
+        return;
+    }
+
+    // approach the partner until close enough
+    float dist_sqr = object().Position().distance_to_sqr(m_partner_target->Position());
+    if (dist_sqr > m_approach_distance_sqr)
+    {
+        object().movement().set_movement_type(eMovementTypeWalk);
+        object().movement().set_body_state(eBodyStateStand);
+        object().movement().set_path_type(MovementManager::ePathTypeGamePath);
+        object().movement().set_detail_path_type(DetailPathManager::eDetailPathTypeSmooth);
+        Fvector target_pos = m_partner_target->Position();
+        object().movement().set_desired_position(&target_pos);
+        object().sight().setup(CSightAction(SightManager::eSightTypeObject, smart_cast<const CGameObject*>(m_partner_target), true));
+        return;
+    }
+
+    // close enough: stand and face
+    object().movement().set_desired_position(0);
+    object().movement().set_desired_direction(0);
+    object().movement().set_body_state(eBodyStateStand);
+    object().movement().set_movement_type(eMovementTypeStand);
+    object().movement().set_mental_state(eMentalStateFree);
+    object().sight().setup(CSightAction(SightManager::eSightTypeObject, smart_cast<const CGameObject*>(m_partner_target), true));
+
+    if (!m_trade_time)
+        m_trade_phase = eTradePhaseCompute;
+
+    switch (m_trade_phase)
+    {
+    case eTradePhaseCompute:
+    {
+        m_trade_time = Device.dwTimeGlobal;
+        m_phase_start_time = Device.dwTimeGlobal;
+
+        // 1. mirror both inventories onto their ALife humans
+        mirror_client_to_alife(&object(), m_alife_human);
+        {
+            CAI_Stalker* partner_npc = smart_cast<CAI_Stalker*>(const_cast<CEntity*>(m_partner_target));
+            if (!partner_npc)
+            {
+                m_trade_phase = eTradePhaseDone;
+                return;
+            }
+            mirror_client_to_alife(partner_npc, m_alife_partner);
+        }
+
+        // 2. snapshot what the NPC will give (by type, before the trade)
+        {
+            ALife::OBJECT_IT I = m_alife_human->children.begin();
+            ALife::OBJECT_IT E = m_alife_human->children.end();
+            for (; I != E; ++I)
+            {
+                CGameObject* go = smart_cast<CGameObject*>(ai().alife().objects().object(*I));
+                if (!go)
+                    continue;
+                CInventoryItem* inv = smart_cast<CInventoryItem*>(go);
+                if (!inv)
+                    continue;
+                bool found = false;
+                for (TRADE_ANIM_ITEMS::iterator K = m_give_items_p1.begin(); K != m_give_items_p1.end(); ++K)
+                {
+                    if (K->m_section == inv->m_section_id)
+                    {
+                        found = true;
+                        break;
+                    }
+                }
+                if (found)
+                    continue;
+                STradeAnimItem entry;
+                entry.m_go = go;
+                entry.m_section = inv->m_section_id;
+                m_give_items_p1.push_back(entry);
+            }
+            while (int(m_give_items_p1.size()) > m_max_animation_items)
+                m_give_items_p1.resize(m_max_animation_items);
+        }
+
+        // 3. run the trade (2003 logic, live since Stage 4.7) and diff the inventories
+        {
+            ALife::OBJECT_VECTOR pre_mine;
+            ALife::OBJECT_IT I = m_alife_human->children.begin();
+            ALife::OBJECT_IT E = m_alife_human->children.end();
+            for (; I != E; ++I)
+                pre_mine.push_back(*I);
+            ALife::OBJECT_VECTOR pre_partner;
+            I = m_alife_partner->children.begin();
+            E = m_alife_partner->children.end();
+            for (; I != E; ++I)
+                pre_partner.push_back(*I);
+
+            const_cast<CALifeSimulator&>(ai().alife()).vfPerformTrading(m_alife_human, m_alife_partner);
+
+            // what the NPC received (new children) = what the partner gave
+            ALife::OBJECT_IT I2 = m_alife_human->children.begin();
+            ALife::OBJECT_IT E2 = m_alife_human->children.end();
+            for (; I2 != E2; ++I2)
+            {
+                bool pre = false;
+                for (ALife::OBJECT_VECTOR::iterator K = pre_mine.begin(); K != pre_mine.end(); ++K)
+                    if (*K == *I2)
+                    {
+                        pre = true;
+                        break;
+                    }
+                if (pre)
+                    continue;
+                CGameObject* go = smart_cast<CGameObject*>(ai().alife().objects().object(*I2));
+                if (!go)
+                    continue;
+                CInventoryItem* inv = smart_cast<CInventoryItem*>(go);
+                if (!inv)
+                    continue;
+                bool found = false;
+                for (TRADE_ANIM_ITEMS::iterator K2 = m_receive_items_p1.begin(); K2 != m_receive_items_p1.end(); ++K2)
+                {
+                    if (K2->m_section == inv->m_section_id)
+                    {
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found)
+                {
+                    STradeAnimItem entry;
+                    entry.m_go = go;
+                    entry.m_section = inv->m_section_id;
+                    m_receive_items_p1.push_back(entry);
+                    m_give_items_p2.push_back(entry);
+                }
+            }
+            // what the partner received (new children) = what the NPC gave
+            I2 = m_alife_partner->children.begin();
+            E2 = m_alife_partner->children.end();
+            for (; I2 != E2; ++I2)
+            {
+                bool pre = false;
+                for (ALife::OBJECT_VECTOR::iterator K = pre_partner.begin(); K != pre_partner.end(); ++K)
+                    if (*K == *I2)
+                    {
+                        pre = true;
+                        break;
+                    }
+                if (pre)
+                    continue;
+                CGameObject* go = smart_cast<CGameObject*>(ai().alife().objects().object(*I2));
+                if (!go)
+                    continue;
+                CInventoryItem* inv = smart_cast<CInventoryItem*>(go);
+                if (!inv)
+                    continue;
+                bool found = false;
+                for (TRADE_ANIM_ITEMS::iterator K2 = m_receive_items_p2.begin(); K2 != m_receive_items_p2.end(); ++K2)
+                {
+                    if (K2->m_section == inv->m_section_id)
+                    {
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found)
+                {
+                    STradeAnimItem entry;
+                    entry.m_go = go;
+                    entry.m_section = inv->m_section_id;
+                    m_receive_items_p2.push_back(entry);
+                    m_give_items_p1.push_back(entry);
+                }
+            }
+            while (int(m_receive_items_p1.size()) > m_max_animation_items)
+                m_receive_items_p1.resize(m_max_animation_items);
+            while (int(m_give_items_p2.size()) > m_max_animation_items)
+                m_give_items_p2.resize(m_max_animation_items);
+            while (int(m_receive_items_p2.size()) > m_max_animation_items)
+                m_receive_items_p2.resize(m_max_animation_items);
+        }
+
+        m_animation_item_index = 0;
+        if (int(m_give_items_p1.size()) > 0)
+            m_trade_phase = eTradePhaseGiveItemsP1;
+        else if (int(m_receive_items_p1.size()) > 0)
+            m_trade_phase = eTradePhaseReceiveItemsP1;
+        else if (int(m_give_items_p2.size()) > 0)
+            m_trade_phase = eTradePhaseGiveItemsP2;
+        else
+            m_trade_phase = eTradePhaseMirrorBack;
+        return;
+    }
+
+    case eTradePhaseGiveItemsP1:
+    case eTradePhaseReceiveItemsP1:
+    {
+        // NPC's phases: play the hand-over animation, timed by m_animation_duration_ms
+        if (m_trade_time && Device.dwTimeGlobal - m_phase_start_time > m_phase_timeout_ms)
+        {
+            if (m_current_item_go)
+                finish_hand_over_animation();
+            m_animation_item_index = 0;
+            if (m_trade_phase == eTradePhaseGiveItemsP1)
+                m_trade_phase = eTradePhaseReceiveItemsP1;
+            else
+                m_trade_phase = eTradePhaseGiveItemsP2;
+            m_phase_start_time = Device.dwTimeGlobal;
+            return;
+        }
+
+        const TRADE_ANIM_ITEMS& list = current_list();
+
+        if (m_current_item_go == 0)
+        {
+            if (m_animation_item_index < int(list.size()))
+            {
+                const STradeAnimItem& entry = list[m_animation_item_index];
+                start_hand_over_animation(entry.m_go, entry.m_section.c_str());
+            }
+            else
+            {
+                on_animation_phase_complete();
+                return;
+            }
+        }
+        else if (Device.dwTimeGlobal - m_phase_start_time >= m_animation_duration_ms)
+        {
+            finish_hand_over_animation();
+            ++m_animation_item_index;
+            if (m_animation_item_index >= int(list.size()))
+                on_animation_phase_complete();
+        }
+        return;
+    }
+
+    case eTradePhaseGiveItemsP2:
+    case eTradePhaseReceiveItemsP2:
+    {
+        // Partner's phases: no animation (it is not visible to us doing it),
+        // just a short stand so the sequence reads naturally.
+        if (m_trade_time && Device.dwTimeGlobal - m_phase_start_time > m_phase_timeout_ms)
+        {
+            m_trade_phase = (m_trade_phase == eTradePhaseGiveItemsP2) ? eTradePhaseReceiveItemsP2
+                                                                      : eTradePhaseMirrorBack;
+            m_phase_start_time = Device.dwTimeGlobal;
+            return;
+        }
+
+        if (Device.dwTimeGlobal - m_phase_start_time >= m_animation_duration_ms)
+        {
+            m_trade_phase = (m_trade_phase == eTradePhaseGiveItemsP2) ? eTradePhaseReceiveItemsP2
+                                                                      : eTradePhaseMirrorBack;
+            m_phase_start_time = Device.dwTimeGlobal;
+            m_animation_item_index = 0;
+        }
+        return;
+    }
+
+    case eTradePhaseMirrorBack:
+    {
+        // mirror both inventories back to the client
+        mirror_alife_to_client(&object(), m_alife_human);
+        {
+            CAI_Stalker* partner_npc = smart_cast<CAI_Stalker*>(const_cast<CEntity*>(m_partner_target));
+            if (partner_npc)
+                mirror_alife_to_client(partner_npc, m_alife_partner);
+        }
+        m_trade_phase = eTradePhaseDone;
+        return;
+    }
+
+    case eTradePhaseDone:
+        return;
+    }
+}
+
+bool CStalkerActionTradeWithSquad::in_animation_phase() const
+{
+    return m_trade_phase == eTradePhaseGiveItemsP1 || m_trade_phase == eTradePhaseReceiveItemsP1;
+}
+
+const CStalkerActionTradeWithSquad::TRADE_ANIM_ITEMS& CStalkerActionTradeWithSquad::current_list() const
+{
+    switch (m_trade_phase)
+    {
+    case eTradePhaseGiveItemsP1:
+        return m_give_items_p1;
+    case eTradePhaseReceiveItemsP1:
+        return m_receive_items_p1;
+    case eTradePhaseGiveItemsP2:
+        return m_give_items_p2;
+    case eTradePhaseReceiveItemsP2:
+        return m_receive_items_p2;
+    }
+    return m_give_items_p1;
+}
+
+void CStalkerActionTradeWithSquad::on_animation_phase_complete()
+{
+    if (m_trade_phase == eTradePhaseGiveItemsP1)
+        m_trade_phase = (int(m_receive_items_p1.size()) > 0) ? eTradePhaseReceiveItemsP1
+                                                            : (int(m_give_items_p2.size()) > 0 ? eTradePhaseGiveItemsP2
+                                                                                               : eTradePhaseMirrorBack);
+    else // eTradePhaseReceiveItemsP1
+        m_trade_phase = (int(m_give_items_p2.size()) > 0) ? eTradePhaseGiveItemsP2
+                                                         : eTradePhaseMirrorBack;
+    m_phase_start_time = Device.dwTimeGlobal;
+    m_animation_item_index = 0;
+}
+
 CStalkerActionNoALife::CStalkerActionNoALife(CAI_Stalker* object, LPCSTR action_name) : inherited(object, action_name)
 {
 }

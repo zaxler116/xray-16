@@ -37,6 +37,7 @@ void CStalkerALifePlanner::add_evaluators()
     add_evaluator(eWorldPropertyALife, xr_new<CStalkerPropertyEvaluatorALife>(m_object, "ALife Simulator"));
     add_evaluator(eWorldPropertySquadGreeting, xr_new<CStalkerPropertyEvaluatorSquadGreeting>(m_object, "squad greeting"));
     add_evaluator(eWorldPropertyTradeWithTrader, xr_new<CStalkerPropertyEvaluatorTradeWithTrader>(m_object, "trade with trader"));
+    add_evaluator(eWorldPropertyTradeWithSquad, xr_new<CStalkerPropertyEvaluatorTradeWithSquad>(m_object, "trade with squad"));
 }
 
 void CStalkerALifePlanner::add_actions()
@@ -59,6 +60,11 @@ void CStalkerALifePlanner::add_actions()
     add_condition(action, eWorldPropertyALife, true);
     add_condition(action, eWorldPropertyTradeWithTrader, true);
     add_operator(eWorldOperatorTradeWithTrader, action);
+
+    action = xr_new<CStalkerActionTradeWithSquad>(m_object, "trade with squad");
+    add_condition(action, eWorldPropertyALife, true);
+    add_condition(action, eWorldPropertyTradeWithSquad, true);
+    add_operator(eWorldOperatorTradeWithSquad, action);
 
     action = xr_new<CStalkerActionSmartTerrain>(m_object, "smart terrain : get task location");
     add_condition(action, eWorldPropertyALife, true);

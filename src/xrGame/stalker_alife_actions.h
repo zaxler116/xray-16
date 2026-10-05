@@ -126,6 +126,74 @@ private:
 };
 
 //////////////////////////////////////////////////////////////////////////
+// CStalkerActionTradeWithSquad (V2.4)
+//////////////////////////////////////////////////////////////////////////
+
+class CStalkerActionTradeWithSquad : public CStalkerActionBase
+{
+protected:
+    typedef CStalkerActionBase inherited;
+
+    enum ETradePhase
+    {
+        eTradePhaseApproach,
+        eTradePhaseCompute,
+        // V2.4 - participant 1 (the NPC): hand over the items it gives, with animations
+        eTradePhaseGiveItemsP1,
+        // V2.4 - participant 1 (the NPC): receive the items it gets, with animations
+        eTradePhaseReceiveItemsP1,
+        // V2.4 - participant 2 (the other squad member): no animations, timing only
+        eTradePhaseGiveItemsP2,
+        eTradePhaseReceiveItemsP2,
+        eTradePhaseMirrorBack,
+        eTradePhaseDone
+    };
+
+    const CEntity* m_partner_target;
+    CSE_ALifeHumanAbstract* m_alife_human;
+    CSE_ALifeHumanAbstract* m_alife_partner;
+    u32 m_trade_time;
+    float m_approach_distance_sqr;
+
+    ETradePhase m_trade_phase;
+    u32 m_phase_start_time;
+    CGameObject* m_current_item_go;
+    shared_str m_current_item_section;
+    int m_animation_item_index;
+    int m_max_animation_items;
+
+    LPCSTR m_hand_over_animation;
+    u32 m_animation_duration_ms;
+    u32 m_phase_timeout_ms;
+
+    struct STradeAnimItem
+    {
+        CGameObject* m_go;
+        shared_str m_section;
+    };
+    typedef xr_vector<STradeAnimItem> TRADE_ANIM_ITEMS;
+    TRADE_ANIM_ITEMS m_give_items_p1;
+    TRADE_ANIM_ITEMS m_receive_items_p1;
+    TRADE_ANIM_ITEMS m_give_items_p2;
+    TRADE_ANIM_ITEMS m_receive_items_p2;
+
+public:
+    CStalkerActionTradeWithSquad(CAI_Stalker* object, LPCSTR action_name = "");
+    virtual void initialize();
+    virtual void execute();
+    virtual void finalize();
+
+private:
+    void start_hand_over_animation(CGameObject* item, LPCSTR section_id);
+    void finish_hand_over_animation();
+    void mirror_client_to_alife(CAI_Stalker* npc, CSE_ALifeHumanAbstract* alife_human);
+    void mirror_alife_to_client(CAI_Stalker* npc, CSE_ALifeHumanAbstract* alife_human);
+    bool in_animation_phase() const;
+    const TRADE_ANIM_ITEMS& current_list() const;
+    void on_animation_phase_complete();
+};
+
+//////////////////////////////////////////////////////////////////////////
 // CStalkerActionNoALife
 //////////////////////////////////////////////////////////////////////////
 
