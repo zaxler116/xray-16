@@ -67,6 +67,11 @@ public:
     // N.5: ammo boxes of the best weapon that must be kept (bullets reserve)
     int  ammo_keep_count(CSE_ALifeInventoryItem* item, CSE_ALifeHumanAbstract* owner) const;
 
+    // V2.1: can the owner fight a single enemy of this class (best weapon +
+    // ammo vs. the enemy's hp)? V3 will use it with world-knowledge enemy
+    // counts to decide whether to go to a target at all.
+    bool combat_power_estimate(CSE_ALifeHumanAbstract* owner, CSE_ALifeMonsterAbstract* enemy) const;
+
     // N.2: trade tuning (defaults; N.5 will load them from a config section)
     float m_food_keep_days;     // game days of food to keep
     float m_ammo_keep_factor;   // extra ammo boxes to keep for the primary weapon

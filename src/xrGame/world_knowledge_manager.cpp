@@ -118,6 +118,24 @@ int CWorldKnowledgeManager::enemies_near(const Fvector& position, float radius) 
     return count;
 }
 
+int CWorldKnowledgeManager::enemies_near(const xr_vector<const SWorldKnowledgePoint*>& points,
+    const Fvector& position, float radius) const
+{
+    int count = 0;
+    float radius_sq = radius * radius;
+    for (const SWorldKnowledgePoint* p : points)
+    {
+        if (!p)
+            continue;
+        if (p->relation_for_me != ALife::eRelationTypeEnemy && p->relation_for_me != ALife::eRelationTypeWorstEnemy &&
+            p->relation_to_me != ALife::eRelationTypeEnemy && p->relation_to_me != ALife::eRelationTypeWorstEnemy)
+            continue;
+        if (p->position.distance_to_sqr(position) <= radius_sq)
+            ++count;
+    }
+    return count;
+}
+
 ALife::ERelationType CWorldKnowledgeManager::worst_relation_near(const Fvector& position, float radius) const
 {
     ALife::ERelationType worst = ALife::eRelationTypeFriend;

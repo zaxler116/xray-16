@@ -59,6 +59,7 @@ public:
     // worst_relation is the worst of the relations seen among them.
     int enemies_near(const Fvector& position, float radius) const;
     ALife::ERelationType worst_relation_near(const Fvector& position, float radius) const;
+    int enemies_near(const xr_vector<const SWorldKnowledgePoint*>& points, const Fvector& position, float radius) const;
     IC u32 ttl_ms() const { return (m_ttl_ms); }
     IC u32 max_points() const { return (m_max_points); }
     IC const CCustomMonster* object() const { return (m_object); }

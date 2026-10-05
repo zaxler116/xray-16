@@ -8,6 +8,7 @@
 
 #include "StdAfx.h"
 #include "alife_human_object_handler.h"
+#include "xrServer_Objects_ALife_Monsters.h"
 #include "alife_communication_space.h"
 #include "alife_object_registry.h"
 #include "xrServer_Objects_ALife_Monsters.h"
@@ -859,3 +860,47 @@ bool CALifeHumanObjectHandler::item_is_keepable(
     int have = item_current_count(item, owner);
     return have > keep;
 }
+
+//////////////////////////////////////////////////////////////////////////
+// V2.1: rough combat power estimate.
+//
+// The owner can fight one enemy of `enemy`'s class if it has a usable
+// best weapon (a ranged weapon with bullets, or a knife / secondary) and
+// enough bullets to deal the enemy's max hit points
+// (m_fMaxHealthValue is the 2005 stand-in for the 2003 m_fMaxCondition).
+// Melee-only humans (knife / secondary weapon, no bullets) pass only
+// against weak enemies (m_fMaxHealthValue <= 100).
+//
+// NOTE: this is deliberately conservative: it is a "can I try" answer,
+// not a guarantee of victory. V3 will combine it with the number of
+// remembered enemies (CWorldKnowledgeManager::enemies_near) and the
+// owner's squad size.
+bool CALifeHumanObjectHandler::combat_power_estimate(CSE_ALifeHumanAbstract* owner,
+    CSE_ALifeMonsterAbstract* enemy) const
+{
+    if (!owner || !enemy)
+        return false;
+
+    float enemy_hp = enemy->m_fMaxHealthValue > 0.f ? enemy->m_fMaxHealthValue : 100.f;
+
+    ALife::EHitType tHitType;
+    float fHitPower;
+    CSE_ALifeItemWeapon* best = owner->tpfGetBestWeapon(tHitType, fHitPower);
+    if (!best)
+        return false;
+
+    // knife or secondary weapon: melee only
+    u8 slot = best->get_slot();
+    if (slot == 0 || slot == 3)
+        return enemy_hp <= 100.f;
+
+    // ranged weapon: bullets vs. enemy hp
+    ALife::OBJECT_VECTOR objects = owner->children;
+    u16 ammo = const_cast<CALifeHumanObjectHandler*>(this)->get_available_ammo_count(best, objects);
+    if (ammo == u16(-1))
+        return false;
+
+    float bullet_power = fHitPower > 0.f ? fHitPower : 10.f;
+    return float(ammo) * bullet_power * 0.5f >= enemy_hp;
+}
+
