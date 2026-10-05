@@ -17,7 +17,7 @@
 #include "xrServer.h"
 #include "xrServerEntities/xrMessages.h"
 #include "xrServer_Objects_ALife_Monsters.h"
-
+#include <cmath>
 
 #ifdef DEBUG
 extern Flags32 psAI_Flags;
@@ -88,7 +88,7 @@ bool CSE_ALifeTraderAbstract::check_inventory_consistency() {
   }
 
   R_ASSERT2(m_fCumulativeItemMass < EPS_L ||
-                xr_fabs(m_fCumulativeItemMass - mass) < 0.01f,
+                std::fabs(m_fCumulativeItemMass - mass) < 0.01f,
             "Cumulative item mass mismatch");
 
   if (ALIFE_LOG_ON)
@@ -180,7 +180,7 @@ void add_online_impl(CSE_ALifeDynamicObject *object,
 #if defined(DEBUG) || defined(DEBUG_ALIFE)
     //		if (ALIFE_LOG_ON)
     //			Msg					("[LSS] Spawning
-    //item
+    // item
     //[%s][%s][%d]",l_tpALifeInventoryItem->base()->name_replace(),*l_tpALifeInventoryItem->base()->s_name,l_tpALifeDynamicObject->ID);
     Msg("[LSS][%d] Going online [%d][%s][%d] with parent [%d][%s] on '%s'",
         Device.dwFrame, Device.dwTimeGlobal,
@@ -229,7 +229,7 @@ void add_offline_impl(CSE_ALifeDynamicObject *object,
 #if defined(DEBUG) || defined(DEBUG_ALIFE)
     //		if (ALIFE_LOG_ON)
     //			Msg					("[LSS]
-    //Destroying item
+    // Destroying item
     //[%s][%s][%d]",inventory_item->base()->name_replace(),*inventory_item->base()->s_name,inventory_item->base()->ID);
     Msg("[LSS][%d] Going offline [%d][%s][%d] with parent [%d][%s] on '%s'",
         Device.dwFrame, Device.dwTimeGlobal,

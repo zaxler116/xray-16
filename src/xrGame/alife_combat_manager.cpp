@@ -287,7 +287,8 @@ bool CALifeCombatManager::bfCheckForInteraction(
              .header()
              .levels()
              .find(ai().game_graph().vertex(l_tGraphID)->level_id())
-             ->second.name(),
+             ->second.name()
+             .c_str(),
         ai().game_graph().vertex(l_tGraphID)->vertex_type()[0],
         ai().game_graph().vertex(l_tGraphID)->vertex_type()[1],
         ai().game_graph().vertex(l_tGraphID)->vertex_type()[2],
