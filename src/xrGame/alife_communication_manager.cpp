@@ -751,6 +751,11 @@ void CALifeCommunicationManager::communicate_with_customer(
         VERIFY(!original_pda);
         original_pda = pda;
       }
+      // N.3: sell only what the human can part with (keepable). Personal
+      // items (own PDA, equipment, current best primary weapon) and the
+      // minimum stock (food for m_food_keep_days, single medikit) stay.
+      if (!tpALifeHumanAbstract->brain().objects().item_is_keepable(l_tpALifeInventoryItem, tpALifeHumanAbstract))
+        continue;
       tpALifeHumanAbstract->detach(l_tpALifeInventoryItem, 0, true, false);
       smart_cast<CSE_ALifeDynamicObject *>(tpALifeTrader->base())
           ->attach(l_tpALifeInventoryItem, true);
@@ -862,6 +867,9 @@ void CALifeCommunicationManager::compute_trade(
         plan.original_pda = pda;
         continue; // the PDA is not sold
       }
+      // N.3: only keepable items are sold (see communicate_with_customer)
+      if (!tpALifeHumanAbstract->brain().objects().item_is_keepable(item, tpALifeHumanAbstract))
+        continue;
       plan.customer_gives.push_back(item);
     }
   }
