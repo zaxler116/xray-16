@@ -31,6 +31,16 @@
 #include "AI_PhraseDialogManager.h"
 #include "relation_registry.h"
 #include "InventoryOwner.h"
+#include "alife_object_registry.h"
+#include "alife_communication_manager.h"
+#include "alife_group_registry.h"
+#include "alife_switch_manager.h"
+#include "xrServer_Objects_ALife_Monsters.h"
+#include "alife_object_registry.h"
+#include "alife_communication_manager.h"
+#include "alife_group_registry.h"
+#include "alife_switch_manager.h"
+#include "xrServer_Objects_ALife_Monsters.h"
 
 using namespace StalkerSpace;
 
@@ -189,9 +199,189 @@ void CStalkerActionSquadGreeting::execute()
 }
 
 //////////////////////////////////////////////////////////////////////////
-// CStalkerActionNoALife
+// CStalkerActionTradeWithTrader
 //////////////////////////////////////////////////////////////////////////
 
+CStalkerActionTradeWithTrader::CStalkerActionTradeWithTrader(CAI_Stalker* object, LPCSTR action_name)
+    : inherited(object, action_name),
+      m_trader_target(0), m_alife_human(0), m_alife_trader(0),
+      m_trade_time(0), m_approach_distance_sqr(2.5f * 2.5f)
+{
+}
+
+void CStalkerActionTradeWithTrader::initialize()
+{
+    inherited::initialize();
+
+    m_trade_time = 0;
+
+    // find the nearest ALife trader (same logic as the evaluator)
+    m_trader_target = 0;
+    m_alife_trader = 0;
+    float best_dist_sqr = 30.f * 30.f;
+    const CVisualMemoryManager::RAW_VISIBLES& visibles = object().memory().visual().raw_objects();
+    for (CVisualMemoryManager::RAW_VISIBLES::const_iterator i = visibles.begin(); i != visibles.end(); ++i)
+    {
+        const CEntity* e = smart_cast<const CEntity*>(*i);
+        if (!e || !e->g_Alive())
+            continue;
+        if (e->ID() == object().ID())
+            continue;
+        CSE_ALifeTrader* trader =
+            smart_cast<CSE_ALifeTrader*>(ai().alife().objects().object(e->ID()));
+        if (!trader)
+            continue;
+        float dist_sqr = object().Position().distance_to_sqr(e->Position());
+        if (dist_sqr > best_dist_sqr)
+            continue;
+        m_trader_target = e;
+        m_alife_trader = trader;
+        best_dist_sqr = dist_sqr;
+    }
+
+    // the ALife server object of this stalker; it stays in the registry
+    // while online, with empty children (the real inventory is client-side)
+    m_alife_human =
+        smart_cast<CSE_ALifeHumanAbstract*>(ai().alife().objects().object(object().ID()));
+
+    if (!m_trader_target || !m_alife_human)
+    {
+        object().movement().set_desired_position(0);
+        object().movement().set_desired_direction(0);
+        object().movement().set_body_state(eBodyStateStand);
+        object().movement().set_movement_type(eMovementTypeStand);
+        object().movement().set_mental_state(eMentalStateFree);
+        object().sight().setup(CSightAction(SightManager::eSightTypeCurrentDirection));
+        return;
+    }
+
+    // face the trader and stand
+    object().movement().set_desired_position(0);
+    object().movement().set_desired_direction(0);
+    object().movement().set_body_state(eBodyStateStand);
+    object().movement().set_movement_type(eMovementTypeStand);
+    object().movement().set_mental_state(eMentalStateFree);
+    object().sight().setup(CSightAction(SightManager::eSightTypeObject, smart_cast<const CGameObject*>(m_trader_target), true));
+
+    if (!object().inventory().ActiveItem())
+        object().CObjectHandler::set_goal(eObjectActionIdle);
+    else
+        object().CObjectHandler::set_goal(eObjectActionIdle, object().inventory().ActiveItem());
+}
+
+void CStalkerActionTradeWithTrader::finalize()
+{
+    inherited::finalize();
+
+    object().movement().set_desired_position(0);
+    object().sight().setup(SightManager::eSightTypePathDirection);
+
+    if (!object().g_Alive())
+        return;
+
+    object().sound().remove_active_sounds(u32(eStalkerSoundMaskNoHumming));
+}
+
+void CStalkerActionTradeWithTrader::execute()
+{
+    inherited::execute();
+
+    if (!object().g_Alive())
+        return;
+
+    if (!m_trader_target || !m_alife_human || !m_alife_trader)
+        return;
+
+    if (!m_trader_target->g_Alive())
+    {
+        m_trader_target = 0;
+        return;
+    }
+
+    // approach the trader until close enough
+    float dist_sqr = object().Position().distance_to_sqr(m_trader_target->Position());
+    if (dist_sqr > m_approach_distance_sqr)
+    {
+        object().movement().set_movement_type(eMovementTypeWalk);
+        object().movement().set_body_state(eBodyStateStand);
+        object().movement().set_path_type(MovementManager::ePathTypeGamePath);
+        object().movement().set_detail_path_type(DetailPathManager::eDetailPathTypeSmooth);
+        Fvector target_pos = m_trader_target->Position();
+        object().movement().set_desired_position(&target_pos);
+        object().sight().setup(CSightAction(SightManager::eSightTypeObject, smart_cast<const CGameObject*>(m_trader_target), true));
+        return;
+    }
+
+    // close enough: stand and face
+    object().movement().set_desired_position(0);
+    object().movement().set_desired_direction(0);
+    object().movement().set_body_state(eBodyStateStand);
+    object().movement().set_movement_type(eMovementTypeStand);
+    object().movement().set_mental_state(eMentalStateFree);
+    object().sight().setup(CSightAction(SightManager::eSightTypeObject, smart_cast<const CGameObject*>(m_trader_target), true));
+
+    // trade once: mirror the client inventory onto the ALife human, run the
+    // 2003 communicate_with_customer (sell everything, buy back what fits
+    // the preferences), then mirror the result back to the client inventory.
+    if (!m_trade_time)
+    {
+        m_trade_time = Device.dwTimeGlobal;
+
+        // move every client item to the ALife human (client inventory -> ALife)
+        {
+            CInventoryItem* item = 0;
+            while ((item = object().inventory().tpfGetObjectByIndex(0)) != 0)
+            {
+                CGameObject* go = smart_cast<CGameObject*>(item);
+                if (!go)
+                    continue;
+                CSE_ALifeInventoryItem* alife_item =
+                    smart_cast<CSE_ALifeInventoryItem*>(ai().alife().objects().object(go->ID()));
+                if (!alife_item)
+                {
+                    // no ALife twin - drop the item
+                    object().inventory().DropItem(go, true, true);
+                    continue;
+                }
+                // detach from the client inventory and attach to the ALife human
+                object().inventory().DropItem(go, true, true);
+                m_alife_human->attach(alife_item, true);
+            }
+        }
+        m_alife_human->m_dwMoney = object().get_money();
+
+        // the trade itself (recurses into the group, if this stalker is in one)
+        const_cast<CALifeSimulator&>(ai().alife()).communicate_with_customer(m_alife_human, m_alife_trader);
+
+        // mirror the result back: ALife children -> client inventory
+        u32 money = m_alife_human->m_dwMoney;
+        {
+            ALife::OBJECT_VECTOR taken;
+            ALife::OBJECT_IT I = m_alife_human->children.begin();
+            ALife::OBJECT_IT E = m_alife_human->children.end();
+            for (; I != E; ++I)
+            {
+                CSE_ALifeInventoryItem* alife_item =
+                    smart_cast<CSE_ALifeInventoryItem*>(ai().alife().objects().object(*I));
+                if (!alife_item)
+                    continue;
+                CGameObject* go = smart_cast<CGameObject*>(ai().alife().objects().object(*I));
+                if (!go)
+                    continue;
+                // take the item into the client inventory, then detach it from the ALife human
+                object().inventory().Take(go, true, false);
+                taken.push_back(*I);
+            }
+            for (ALife::OBJECT_VECTOR::iterator J = taken.begin(); J != taken.end(); ++J)
+            {
+                CSE_ALifeInventoryItem* alife_item =
+                    smart_cast<CSE_ALifeInventoryItem*>(ai().alife().objects().object(*J));
+                m_alife_human->detach(alife_item, 0, true, false);
+            }
+        }
+        object().set_money(money, true);
+    }
+}
 CStalkerActionNoALife::CStalkerActionNoALife(CAI_Stalker* object, LPCSTR action_name) : inherited(object, action_name)
 {
 }

@@ -48,6 +48,28 @@ public:
 };
 
 //////////////////////////////////////////////////////////////////////////
+// CStalkerActionTradeWithTrader
+//////////////////////////////////////////////////////////////////////////
+
+class CStalkerActionTradeWithTrader : public CStalkerActionBase
+{
+protected:
+    typedef CStalkerActionBase inherited;
+
+    const CEntity* m_trader_target;
+    CSE_ALifeHumanAbstract* m_alife_human;
+    CSE_ALifeTrader* m_alife_trader;
+    u32 m_trade_time;
+    float m_approach_distance_sqr;
+
+public:
+    CStalkerActionTradeWithTrader(CAI_Stalker* object, LPCSTR action_name = "");
+    virtual void initialize();
+    virtual void execute();
+    virtual void finalize();
+};
+
+//////////////////////////////////////////////////////////////////////////
 // CStalkerActionNoALife
 //////////////////////////////////////////////////////////////////////////
 
