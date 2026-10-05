@@ -43,6 +43,7 @@
 #include "alife_group_registry.h"
 #include "alife_switch_manager.h"
 #include "xrServer_Objects_ALife_Monsters.h"
+#include "ai_debug.h"
 
 using namespace StalkerSpace;
 
@@ -260,6 +261,10 @@ void CStalkerActionTradeWithTrader::initialize()
     m_alife_human =
         smart_cast<CSE_ALifeHumanAbstract*>(ai().alife().objects().object(object().ID()));
 
+#if defined(DEBUG_ALIFE)
+    if (ALIFE_LOG_ON)
+        Msg("V5 TRADE-TRADER init: stalker=%s trader=%s alife_human=%s children=%d", object().cName().c_str(), m_trader_target ? m_trader_target->cName().c_str() : "NULL", m_alife_human ? "OK" : "NULL", m_alife_trader ? (int)m_alife_trader->children.size() : -1);
+#endif
     if (!m_trader_target || !m_alife_human)
     {
         object().movement().set_desired_position(0);
@@ -372,6 +377,10 @@ void CStalkerActionTradeWithTrader::finish_hand_over_animation()
 
 void CStalkerActionTradeWithTrader::mirror_client_to_alife()
 {
+#if defined(DEBUG_ALIFE)
+    if (ALIFE_LOG_ON)
+        Msg("V5 TRADE-TRADER mirror client->alife: stalker=%s money=%u", object().cName().c_str(), (unsigned)object().get_money());
+#endif
     // move every client item to the ALife human (client inventory -> ALife)
     CInventoryItem* item = 0;
     while ((item = object().inventory().tpfGetObjectByIndex(0)) != 0)
@@ -396,6 +405,10 @@ void CStalkerActionTradeWithTrader::mirror_client_to_alife()
 
 void CStalkerActionTradeWithTrader::mirror_alife_to_client()
 {
+#if defined(DEBUG_ALIFE)
+    if (ALIFE_LOG_ON)
+        Msg("V5 TRADE-TRADER mirror alife->client: stalker=%s alife_children=%d money=%u", object().cName().c_str(), (int)m_alife_human->children.size(), (unsigned)m_alife_human->m_dwMoney);
+#endif
     // mirror the result back: ALife children -> client inventory
     u32 money = m_alife_human->m_dwMoney;
     ALife::OBJECT_VECTOR taken;
@@ -425,6 +438,10 @@ void CStalkerActionTradeWithTrader::mirror_alife_to_client()
 
 void CStalkerActionTradeWithTrader::compute_trade_plan()
 {
+#if defined(DEBUG_ALIFE)
+    if (ALIFE_LOG_ON)
+        Msg("V5 TRADE-TRADER compute_trade_plan: stalker=%s alife_children=%d", object().cName().c_str(), (int)m_alife_human->children.size());
+#endif
     // snapshot the item types the NPC will give: the ALife children that are
     // client-owned (their CGameObject is in the registry, not a trader's stock)
     {
@@ -580,6 +597,10 @@ void CStalkerActionTradeWithTrader::execute()
         m_trade_time = Device.dwTimeGlobal;
         m_phase_start_time = Device.dwTimeGlobal;
 
+#if defined(DEBUG_ALIFE)
+        if (ALIFE_LOG_ON)
+            Msg("V5 TRADE-TRADER phase Compute: stalker=%s trader=%s trader_children=%d stalker_children=%d", object().cName().c_str(), m_trader_target->cName().c_str(), (int)m_alife_trader->children.size(), (int)m_alife_human->children.size());
+#endif
         // 1. mirror the client inventory onto the ALife human (so the trade has real data)
         mirror_client_to_alife();
 
@@ -591,6 +612,10 @@ void CStalkerActionTradeWithTrader::execute()
         STradePlan trade_plan;
         const_cast<CALifeSimulator&>(ai().alife()).compute_trade(m_alife_human, m_alife_trader, trade_plan);
 
+#if defined(DEBUG_ALIFE)
+        if (ALIFE_LOG_ON)
+            Msg("V5 TRADE-TRADER trade_plan: stalker=%s gives=%d receives=%d money %u -> %u", object().cName().c_str(), (int)trade_plan.customer_gives.size(), (int)trade_plan.customer_receives.size(), (unsigned)trade_plan.money_customer_start, (unsigned)trade_plan.money_customer_end);
+#endif
         // what the NPC receives (and the trader gives): dedup by item type
         for (ALife::ITEM_P_VECTOR::const_iterator R = trade_plan.customer_receives.begin();
              R != trade_plan.customer_receives.end(); ++R)
@@ -637,6 +662,11 @@ void CStalkerActionTradeWithTrader::execute()
         // 5. apply the plan to the ALife inventories
         const_cast<CALifeSimulator&>(ai().alife()).apply_trade(m_alife_human, m_alife_trader, trade_plan);
         m_computed = true; // V4.1
+
+#if defined(DEBUG_ALIFE)
+        if (ALIFE_LOG_ON)
+            Msg("V5 TRADE-TRADER apply_trade done: stalker=%s stalker_children=%d trader_children=%d", object().cName().c_str(), (int)m_alife_human->children.size(), (int)m_alife_trader->children.size());
+#endif
 
         m_animation_item_index = 0;
         if (int(m_give_items_p1.size()) > 0)
@@ -720,9 +750,18 @@ void CStalkerActionTradeWithTrader::execute()
     }
 
     case eTradePhaseMirrorBack:
+#if defined(DEBUG_ALIFE)
+        if (ALIFE_LOG_ON)
+            Msg("V5 TRADE-TRADER phase MirrorBack: stalker=%s alife_children=%d", object().cName().c_str(), (int)m_alife_human->children.size());
+#endif
         // mirror the result back: ALife children -> client inventory
         mirror_alife_to_client();
         m_trade_phase = eTradePhaseDone;
+
+#if defined(DEBUG_ALIFE)
+        if (ALIFE_LOG_ON)
+            Msg("V5 TRADE-TRADER DONE: stalker=%s client_items=%d client_money=%u", object().cName().c_str(), (int)object().inventory().m_all.size(), (unsigned)object().get_money());
+#endif
         return;
 
     case eTradePhaseDone:
@@ -947,6 +986,10 @@ void CStalkerActionTradeWithSquad::finish_hand_over_animation()
 
 void CStalkerActionTradeWithSquad::mirror_client_to_alife(CAI_Stalker* npc, CSE_ALifeHumanAbstract* alife_human)
 {
+#if defined(DEBUG_ALIFE)
+    if (ALIFE_LOG_ON)
+        Msg("V5 TRADE-SQUAD mirror client->alife: npc=%s money=%u", npc->cName().c_str(), (unsigned)npc->get_money());
+#endif
     CInventoryItem* item = 0;
     while ((item = npc->inventory().tpfGetObjectByIndex(0)) != 0)
     {
@@ -968,6 +1011,10 @@ void CStalkerActionTradeWithSquad::mirror_client_to_alife(CAI_Stalker* npc, CSE_
 
 void CStalkerActionTradeWithSquad::mirror_alife_to_client(CAI_Stalker* npc, CSE_ALifeHumanAbstract* alife_human)
 {
+#if defined(DEBUG_ALIFE)
+    if (ALIFE_LOG_ON)
+        Msg("V5 TRADE-SQUAD mirror alife->client: npc=%s alife_children=%d money=%u", npc->cName().c_str(), (int)alife_human->children.size(), (unsigned)alife_human->m_dwMoney);
+#endif
     u32 money = alife_human->m_dwMoney;
     ALife::OBJECT_VECTOR taken;
     ALife::OBJECT_IT I = alife_human->children.begin();
@@ -1058,6 +1105,10 @@ void CStalkerActionTradeWithSquad::execute()
         m_trade_time = Device.dwTimeGlobal;
         m_phase_start_time = Device.dwTimeGlobal;
 
+#if defined(DEBUG_ALIFE)
+        if (ALIFE_LOG_ON)
+            Msg("V5 TRADE-SQUAD phase Compute: npc=%s partner=%s npc_children=%d partner_children=%d", object().cName().c_str(), m_partner_target->cName().c_str(), (int)m_alife_human->children.size(), (int)m_alife_partner->children.size());
+#endif
         // 1. mirror both inventories onto their ALife humans
         mirror_client_to_alife(&object(), m_alife_human);
         {
@@ -1117,6 +1168,11 @@ void CStalkerActionTradeWithSquad::execute()
 
             const_cast<CALifeSimulator&>(ai().alife()).vfPerformTrading(m_alife_human, m_alife_partner);
             m_computed = true; // V4.1
+
+#if defined(DEBUG_ALIFE)
+            if (ALIFE_LOG_ON)
+                Msg("V5 TRADE-SQUAD vfPerformTrading done: npc=%s partner=%s npc_children=%d partner_children=%d", object().cName().c_str(), m_partner_target->cName().c_str(), (int)m_alife_human->children.size(), (int)m_alife_partner->children.size());
+#endif
 
             // what the NPC received (new children) = what the partner gave
             ALife::OBJECT_IT I2 = m_alife_human->children.begin();
@@ -1281,6 +1337,10 @@ void CStalkerActionTradeWithSquad::execute()
 
     case eTradePhaseMirrorBack:
     {
+#if defined(DEBUG_ALIFE)
+        if (ALIFE_LOG_ON)
+            Msg("V5 TRADE-SQUAD phase MirrorBack: npc=%s alife_children=%d", object().cName().c_str(), (int)m_alife_human->children.size());
+#endif
         // mirror both inventories back to the client
         mirror_alife_to_client(&object(), m_alife_human);
         {
@@ -1289,6 +1349,11 @@ void CStalkerActionTradeWithSquad::execute()
                 mirror_alife_to_client(partner_npc, m_alife_partner);
         }
         m_trade_phase = eTradePhaseDone;
+
+#if defined(DEBUG_ALIFE)
+        if (ALIFE_LOG_ON)
+            Msg("V5 TRADE-SQUAD DONE: npc=%s client_items=%d client_money=%u", object().cName().c_str(), (int)object().inventory().m_all.size(), (unsigned)object().get_money());
+#endif
         return;
     }
 

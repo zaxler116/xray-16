@@ -27,6 +27,7 @@
 #include "CustomOutfit.h"
 #include "Bolt.h"
 #include "xrNetServer/NET_Messages.h"
+#include "ai_debug.h"
 
 CInventoryOwner::CInventoryOwner()
     : m_inventory(xr_new<CInventory>()),
@@ -502,6 +503,10 @@ void CInventoryOwner::buy_supplies(CInifile& ini_file, LPCSTR section)
     if (!m_purchase_list)
         m_purchase_list = xr_new<CPurchaseList>();
 
+#if defined(DEBUG_ALIFE)
+    if (ALIFE_LOG_ON)
+        Msg("V5 buy_supplies: section=%s", section);
+#endif
     m_purchase_list->process(ini_file, section, *this, true);
 }
 

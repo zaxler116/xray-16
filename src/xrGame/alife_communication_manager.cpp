@@ -447,6 +447,11 @@ void CALifeCommunicationManager::vfPerformTrading(
     CSE_ALifeHumanAbstract *tpALifeHumanAbstract2) {
   CALifeSimulator &l_tpSimulator = const_cast<CALifeSimulator &>(ai().alife());
 
+#if defined(DEBUG_ALIFE)
+  if (ALIFE_LOG_ON)
+    Msg("V5 vfPerformTrading: h1=%s h2=%s h1_children=%d h2_children=%d", tpALifeHumanAbstract1->name_replace(), tpALifeHumanAbstract2->name_replace(), (int)tpALifeHumanAbstract1->children.size(), (int)tpALifeHumanAbstract2->children.size());
+#endif
+
 #if defined(DEBUG) || defined(DEBUG_ALIFE)
   VERIFY(tpALifeHumanAbstract1->check_inventory_consistency());
   VERIFY(tpALifeHumanAbstract2->check_inventory_consistency());
@@ -760,6 +765,10 @@ void CALifeCommunicationManager::communicate_with_customer(
   }
 
   // trade items
+#if defined(DEBUG_ALIFE)
+  if (ALIFE_LOG_ON)
+    Msg("V5 communicate_with_customer: customer=%s trader=%s trader_children=%d customer_children=%d", tpALifeHumanAbstract->name_replace(), tpALifeTrader->name_replace(), (int)tpALifeTrader->children.size(), (int)tpALifeHumanAbstract->children.size());
+#endif
 #if defined(DEBUG) || defined(DEBUG_ALIFE)
   if (ALIFE_LOG_ON)
     Msg("Selling all the items to %s", tpALifeTrader->name_replace());
@@ -883,6 +892,10 @@ void CALifeCommunicationManager::communicate_with_customer(
 void CALifeCommunicationManager::compute_trade(
     CSE_ALifeHumanAbstract *tpALifeHumanAbstract,
     CSE_ALifeTrader *tpALifeTrader, STradePlan &plan) {
+#if defined(DEBUG_ALIFE)
+  if (ALIFE_LOG_ON)
+    Msg("V5 compute_trade: customer=%s trader=%s trader_children=%d customer_children=%d", tpALifeHumanAbstract->name_replace(), tpALifeTrader->name_replace(), (int)tpALifeTrader->children.size(), (int)tpALifeHumanAbstract->children.size());
+#endif
   plan.clear();
   CALifeSimulator &l_tpSimulator = const_cast<CALifeSimulator &>(ai().alife());
   plan.money_customer_start = tpALifeHumanAbstract->m_dwMoney;
@@ -911,6 +924,10 @@ void CALifeCommunicationManager::compute_trade(
     }
   }
 
+#if defined(DEBUG_ALIFE)
+  if (ALIFE_LOG_ON)
+    Msg("V5 compute_trade: customer_gives=%d", (int)plan.customer_gives.size());
+#endif
   // 2. simulate the sale: customer's items go to the trader, money is computed
   u32 money = plan.money_customer_start;
   for (ALife::ITEM_P_VECTOR::iterator G = plan.customer_gives.begin();
@@ -950,6 +967,10 @@ void CALifeCommunicationManager::compute_trade(
     }
   }
 
+#if defined(DEBUG_ALIFE)
+  if (ALIFE_LOG_ON)
+    Msg("V5 compute_trade: customer_receives=%d", (int)plan.customer_receives.size());
+#endif
   // 5. money after the purchase: the customer pays for what it receives
   for (ALife::ITEM_P_VECTOR::iterator R = plan.customer_receives.begin();
        R != plan.customer_receives.end(); ++R)

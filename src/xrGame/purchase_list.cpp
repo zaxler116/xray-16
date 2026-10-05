@@ -12,11 +12,16 @@
 #include "GameObject.h"
 #include "xrAICore/Navigation/ai_object_location.h"
 #include "Level.h"
+#include "ai_debug.h"
 
 static float min_deficit_factor = .3f;
 
 void CPurchaseList::process(CInifile& ini_file, LPCSTR section, CInventoryOwner& owner, bool return_item)
 {
+#if defined(DEBUG_ALIFE)
+    if (ALIFE_LOG_ON)
+        Msg("V5 restock: section=%s return_item=%d", section, (int)return_item);
+#endif
     owner.sell_useless_items();
 
     m_deficits.clear();
@@ -48,6 +53,10 @@ void CPurchaseList::process(CInifile& ini_file, LPCSTR section, CInventoryOwner&
 void CPurchaseList::process(
     const CGameObject& owner, const shared_str& name, const u32& count, const float& probability, bool return_item)
 {
+#if defined(DEBUG_ALIFE)
+    if (ALIFE_LOG_ON)
+        Msg("V5 restock item: section=%s count=%u prob=%.2f return_item=%d", name.c_str(), count, probability, (int)return_item);
+#endif
     VERIFY3(count, "Invalid count for section in the purchase list", name.c_str());
     VERIFY3(!fis_zero(probability, EPS_S), "Invalid probability for section in the purchase list", name.c_str());
 
@@ -72,6 +81,10 @@ void CPurchaseList::process(
             NET_Packet P;
             abstract->Spawn_Write(P, TRUE);
             Level().Send(P, net_flags(TRUE));
+#if defined(DEBUG_ALIFE)
+            if (ALIFE_LOG_ON)
+                Msg("V5 restock spawned: section=%s id=%08X", name.c_str(), (unsigned)abstract->ID);
+#endif
         }
         else
         {
@@ -81,4 +94,8 @@ void CPurchaseList::process(
 
     VERIFY3(m_deficits.find(name) == m_deficits.end(), "Duplicate section in the purchase list", name.c_str());
     m_deficits.emplace(name, (float)count * probability / _max((float)j, min_deficit_factor));
+#if defined(DEBUG_ALIFE)
+    if (ALIFE_LOG_ON)
+        Msg("V5 restock done: section=%s spawned=%u/%u deficit=%.2f", name.c_str(), j, count, (float)count * probability / _max((float)j, min_deficit_factor));
+#endif
 }
