@@ -391,6 +391,12 @@ void CALifeCombatManager::vfPerformAttackAction(int iCombatGroupIndex) {
   for (; I != E; ++I) {
     EHitType l_tHitType = eHitTypeMax;
     float l_fHitPower = 0.f;
+    // W.3: while the combat context is known, humans re-evaluate
+    // their weapon every round (ammo drops, GL rules, cluster)
+    CSE_ALifeHumanAbstract *l_tpHuman =
+        smart_cast<CSE_ALifeHumanAbstract *>(*I);
+    if (l_tpHuman && l_tpHuman->brain().objects().has_combat_target())
+      l_tpHuman->m_tpCurrentBestWeapon = 0;
     if (!(*I)->m_tpCurrentBestWeapon) {
       CSE_ALifeItemWeapon *l_tpALifeItemWeapon =
           (*I)->tpfGetBestWeapon(l_tHitType, l_fHitPower);
@@ -474,6 +480,17 @@ void CALifeCombatManager::vfPerformAttackAction(int iCombatGroupIndex) {
 }
 
 void CALifeCombatManager::vfFinishCombat(ECombatResult tCombatResult) {
+  // W.3: clear the combat context, post-combat decisions (trade,
+  // loot) must not use stale enemy data
+  for (int i = 0; i < 2; ++i) {
+    SCHEDULE_P_IT J = m_tpaCombatGroups[i].begin();
+    for (; J != m_tpaCombatGroups[i].end(); ++J) {
+      CSE_ALifeHumanAbstract *l_tpHuman =
+          smart_cast<CSE_ALifeHumanAbstract *>(*J);
+      if (l_tpHuman)
+        l_tpHuman->brain().objects().reset_combat_target();
+    }
+  }
   // processing weapons and dead monsters
   CSE_ALifeDynamicObject *l_tpALifeDynamicObject =
       smart_cast<CSE_ALifeDynamicObject *>(m_tpaCombatObjects[0]);

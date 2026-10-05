@@ -9,9 +9,7 @@
 
 #pragma once
 #include "xrCommon/xr_vector.h"
-#include "xrServer/xrServer_defs.h"
 #include "xrServer_Objects_ALife.h"
-
 
 namespace AlifeWeaponScore {
 // --- enemy classification -------------------------------------------
@@ -117,8 +115,9 @@ struct SWeaponScore {
         sw(0.f), shotgun(0.f) {}
 };
 
-// computes score.total from all fields
-IC float compute(const SWeaponScore &s);
+// computes score.total from all fields (also fills the per-factor
+// breakdown fields of s for diagnostics)
+IC float compute(SWeaponScore &s);
 } // namespace AlifeWeaponScore
 
 #include "alife_weapon_score_inline.h"

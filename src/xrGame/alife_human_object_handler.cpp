@@ -24,6 +24,7 @@
 // N.2: trade "need" core (see item_keep_count / item_is_keepable below)
 #include <cmath>
 #include "xrServer_Objects_ALife_Items.h"
+#include "alife_weapon_score.h"
 
 // CRemoveAttachedItemsPredicate now lives in alife_communication_space.h
 // (shared with the communication manager, Stage 4.7).
@@ -643,25 +644,83 @@ const Fvector* CALifeHumanObjectHandler::combat_enemy_positions(int& count) cons
 CSE_ALifeItemWeapon *CALifeHumanObjectHandler::best_weapon() {
   object_type &object = *m_object;
   object.m_tpCurrentBestWeapon = 0;
+
+  // W.3: while the combat context is known (set by the combat
+  // manager), every candidate weapon is scored by the situation:
+  // distance to the target, enemy class, enemy cluster, ammo, GL /
+  // min-range rules (see alife_weapon_score.h). Without context
+  // (trading, loot, initial pick) the 2003 rule applies: the
+  // highest weapon class wins.
+  const bool has_ctx = has_combat_target();
+  float l_fBestScore = -1.f;
   u32 l_dwBestWeapon = 0;
+
+  float l_fDist = 0.f;
+  int l_iCluster = 0;
+  AlifeWeaponScore::EAlifeEnemyType l_tEnemy =
+      AlifeWeaponScore::eEnemyMedium;
+  if (has_ctx) {
+    l_fDist = object.draw_level_position().distance_to(m_combat_target_pos);
+    int n;
+    const Fvector *positions = combat_enemy_positions(n);
+    for (int i = 0; i < n; ++i)
+      if (positions[i].distance_to(m_combat_target_pos) < 5.f)
+        ++l_iCluster;
+    CSE_ALifeMonsterAbstract *enemy = combat_target_enemy();
+    if (enemy)
+      l_tEnemy = AlifeWeaponScore::classify_enemy(
+          enemy->ef_creature_type(), enemy->m_fMaxHealthValue,
+          enemy->s_name.c_str());
+  }
 
   ALife::OBJECT_IT I = object.children.begin();
   ALife::OBJECT_IT E = object.children.end();
   for (; I != E; ++I) {
-    CSE_ALifeItemWeapon *l_tpALifeItemWeapon =
+    CSE_ALifeItemWeapon *w =
         smart_cast<CSE_ALifeItemWeapon *>(ai().alife().objects().object(*I));
-    if (!l_tpALifeItemWeapon)
+    if (!w)
       continue;
 
-    l_tpALifeItemWeapon->m_dwAmmoAvailable =
-        get_available_ammo_count(l_tpALifeItemWeapon, object.children);
-    if (l_tpALifeItemWeapon->m_dwAmmoAvailable ||
-        (!l_tpALifeItemWeapon->get_slot()) ||
-        (3 == l_tpALifeItemWeapon->get_slot())) {
-      u32 l_dwCurrentBestWeapon = l_tpALifeItemWeapon->ef_weapon_type();
+    w->m_dwAmmoAvailable = get_available_ammo_count(w, object.children);
+    if (!(w->m_dwAmmoAvailable || (!w->get_slot()) ||
+          (3 == w->get_slot())))
+      continue;
+
+    float l_fScore;
+    if (!has_ctx) {
+      l_fScore = float(w->ef_weapon_type());
+    } else {
+      AlifeWeaponScore::SWeaponScore s;
+      s.weapon_ef_type = w->ef_weapon_type();
+      s.has_gl_addon = (w->m_grenade_launcher_status != ALife::eAddonDisabled);
+      // no ammo section (knife etc.) -> unlimited
+      s.ammo_available = w->m_caAmmoSections ? w->m_dwAmmoAvailable
+                                             : u16(-1);
+      s.ammo_limit = w->get_ammo_limit();
+      s.hit_power = w->m_fHitPower;
+      s.switch_time = 0.f;
+      // grenade launcher / underbarrel: no firing under 50 m
+      s.min_range = (s.has_gl_addon ||
+                     (s.weapon_ef_type ==
+                      AlifeWeaponScore::efW_GrenadeLauncher))
+                        ? 50.f
+                        : 0.f;
+      s.enemy_dist = l_fDist;
+      s.enemy = l_tEnemy;
+      s.cluster_count = l_iCluster;
+      l_fScore = AlifeWeaponScore::compute(s);
+    }
+
+    if (has_ctx) {
+      if (l_fScore > l_fBestScore) {
+        l_fBestScore = l_fScore;
+        object.m_tpCurrentBestWeapon = w;
+      }
+    } else {
+      u32 l_dwCurrentBestWeapon = w->ef_weapon_type();
       if (l_dwCurrentBestWeapon > l_dwBestWeapon) {
         l_dwBestWeapon = l_dwCurrentBestWeapon;
-        object.m_tpCurrentBestWeapon = l_tpALifeItemWeapon;
+        object.m_tpCurrentBestWeapon = w;
       }
     }
   }

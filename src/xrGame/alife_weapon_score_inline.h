@@ -214,7 +214,7 @@ IC float switch_factor(float t) {
   return 1.f / (1.f + t / 2.f);
 }
 
-IC float compute(const SWeaponScore &s) {
+IC float compute(SWeaponScore &s) {
   float a = accuracy_factor(s.enemy_dist);
   float r = recoil_factor(s.enemy_dist, s.min_range);
   float c = class_factor(s.weapon_ef_type, s.enemy);
