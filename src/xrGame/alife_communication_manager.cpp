@@ -667,6 +667,38 @@ void CALifeCommunicationManager::vfPerformCommunication()
         continue;
       vfPerformTrading(h1, h2);
     }
+
+  // Stage A.1: squad <-> trader trade (offline).
+  // The 2003 code triggered this when a human group met a trader object in
+  // the interaction manager; in the 2005 layout the trader is a plain
+  // CSE_ALifeDynamicObject (not schedulable), so there is no interaction
+  // entry for it. Trigger here instead: every human (or human group, which
+  // recurses per member) on the same graph vertex as a trader trades with
+  // that trader. communicate_with_customer() is a no-op for an empty
+  // inventory, so the children check is only an optimization.
+  const CALifeObjectRegistry &objects = ai().alife().objects();
+  D_OBJECT_P_MAP::const_iterator I = objects.objects().begin();
+  D_OBJECT_P_MAP::const_iterator E = objects.objects().end();
+  for (; I != E; ++I)
+  {
+    CSE_ALifeTrader *trader = smart_cast<CSE_ALifeTrader *>(I->second);
+    if (!trader || !trader->children.size())
+      continue;
+    for (ALife::SCHEDULE_P_IT J1 = m_tpaCombatGroups[0].begin();
+         J1 != m_tpaCombatGroups[0].end(); ++J1)
+    {
+      CSE_ALifeHumanAbstract *h = smart_cast<CSE_ALifeHumanAbstract *>(*J1);
+      if (h && (h->m_tGraphID == trader->m_tGraphID) && (h->children.size()))
+        communicate_with_customer(h, trader);
+    }
+    for (ALife::SCHEDULE_P_IT J2 = m_tpaCombatGroups[1].begin();
+         J2 != m_tpaCombatGroups[1].end(); ++J2)
+    {
+      CSE_ALifeHumanAbstract *h = smart_cast<CSE_ALifeHumanAbstract *>(*J2);
+      if (h && (h->m_tGraphID == trader->m_tGraphID) && (h->children.size()))
+        communicate_with_customer(h, trader);
+    }
+  }
 }
 
 // Stage 4.8: live (2003 logic, adapted to the 2005 API).
