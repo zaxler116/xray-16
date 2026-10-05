@@ -15,6 +15,7 @@ class CSoundMemoryManager;
 class CHitMemoryManager;
 class CItemManager;
 class CDangerManager;
+class CWorldKnowledgeManager;
 class CCustomMonster;
 class CAI_Stalker;
 class CEntityAlive;
@@ -37,6 +38,7 @@ protected:
     CEnemyManager* m_enemy;
     CItemManager* m_item;
     CDangerManager* m_danger;
+    CWorldKnowledgeManager* m_world;
 
 protected:
     CCustomMonster* m_object;
@@ -79,6 +81,7 @@ public:
     IC CEnemyManager& enemy() const;
     IC CItemManager& item() const;
     IC CDangerManager& danger() const;
+    IC CWorldKnowledgeManager& world() const;
     IC CCustomMonster& object() const;
     IC CAI_Stalker& stalker() const;
 

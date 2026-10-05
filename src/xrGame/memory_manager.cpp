@@ -14,6 +14,7 @@
 #include "enemy_manager.h"
 #include "item_manager.h"
 #include "danger_manager.h"
+#include "world_knowledge_manager.h"
 #include "ai/stalker/ai_stalker.h"
 #include "ai/stalker/ai_stalker_impl.h"
 #include "agent_manager.h"
@@ -41,6 +42,7 @@ CMemoryManager::CMemoryManager(CEntityAlive* entity_alive, CSound_UserDataVisito
     m_enemy = xr_new<CEnemyManager>(m_object);
     m_item = xr_new<CItemManager>(m_object);
     m_danger = xr_new<CDangerManager>(m_object);
+    m_world = xr_new<CWorldKnowledgeManager>(m_object, m_stalker);
 }
 
 CMemoryManager::~CMemoryManager()
@@ -51,6 +53,7 @@ CMemoryManager::~CMemoryManager()
     xr_delete(m_enemy);
     xr_delete(m_item);
     xr_delete(m_danger);
+    xr_delete(m_world);
 }
 
 void CMemoryManager::Load(LPCSTR section)
@@ -60,6 +63,7 @@ void CMemoryManager::Load(LPCSTR section)
     enemy().Load(section);
     item().Load(section);
     danger().Load(section);
+    world().reload(section);
 }
 
 void CMemoryManager::reinit()
@@ -80,6 +84,7 @@ void CMemoryManager::reload(LPCSTR section)
     enemy().reload(section);
     item().reload(section);
     danger().reload(section);
+    world().reload(section);
 }
 
 #ifdef _DEBUG
@@ -137,6 +142,7 @@ void CMemoryManager::update(float time_delta)
     update_enemies(registered_in_combat);
     item().update();
     danger().update();
+    world().update();
 
     STOP_PROFILE
 }
@@ -167,6 +173,9 @@ void CMemoryManager::update(const xr_vector<T>& objects, bool add_enemies)
         if (add_enemies)
         {
             const CEntityAlive* entity_alive = smart_cast<const CEntityAlive*>((*I).m_object);
+            if (entity_alive && entity_alive != m_object)
+                world().add_creature_seen(entity_alive, (*I).m_object_params.m_position,
+                    (*I).m_object_params.m_level_vertex_id);
             if (entity_alive && enemy().add(entity_alive))
                 continue;
         }

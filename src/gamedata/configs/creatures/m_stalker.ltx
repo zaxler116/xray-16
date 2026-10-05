@@ -404,6 +404,11 @@ DynamicObjectsCount				= 32
 DynamicSoundsCount				= 32
 DynamicHitCount					= 32
 
+;---WORLD KNOWLEDGE (V0.1)------------------------------------------------
+; persistent "I saw creature X there" records; TTL in ms of global time
+world_knowledge_ttl			= 21600000		; 6 game hours
+world_knowledge_max_points	= 64
+
 ;---ENEMY------------------------------------------------------------
 ignore_monster_threshold		= 0.0	;0.6	;0.8
 max_ignore_distance				= 15.0
@@ -436,7 +441,7 @@ sound_attack_allies_single_enemy	= fight\attack\attack_,fight\attack\attack_one_
 sound_attack_allies_several_enemies	= fight\attack\attack_,fight\attack\attack_many_,fight\fire\fire_
 sound_search1_no_allies				= fight\threat\threat_distant_
 sound_search1_with_allies			= fight\searching_enemy\search_
-sound_enemy_lost_no_allies			= 
+sound_enemy_lost_no_allies			=
 sound_enemy_lost_with_allies		= fight\searching_enemy\enemy_lost_
 sound_throw_grenade					= fight\grenade\grenade_ready_
 

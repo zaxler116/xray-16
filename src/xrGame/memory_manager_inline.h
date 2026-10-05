@@ -69,6 +69,12 @@ IC CDangerManager& CMemoryManager::danger() const
     return (*m_danger);
 }
 
+IC CWorldKnowledgeManager& CMemoryManager::world() const
+{
+    VERIFY(m_world);
+    return (*m_world);
+}
+
 IC CCustomMonster& CMemoryManager::object() const
 {
     VERIFY(m_object);
