@@ -200,6 +200,33 @@ IC float shotgun_close_factor(float d, u32 w) {
   return 1.f;
 }
 
+IC bool weapon_is_gauss(LPCSTR section) {
+  return detail::section_contains(section, "gauss");
+}
+
+IC float gauss_factor(float d, EAlifeEnemyType e, bool is_gauss) {
+  if (!is_gauss)
+    return 1.f;
+  float f = 1.f;
+  // single-shot anti-materiel gun: hopeless in close combat
+  if (d < 20.f)
+    f *= 0.25f;
+  // small light targets: overkill, slow reload, wasted ammo
+  if (e == eEnemyLight)
+    f *= 0.3f;
+  return f;
+}
+
+IC float melee_factor(float d, u32 w) {
+  if (w != efW_Melee)
+    return 1.f;
+  if (d < 4.f)
+    return 1.8f; // point-blank: knife first
+  if (d > 8.f)
+    return 0.3f; // useless at long range
+  return 1.f;
+}
+
 IC float ammo_factor(u32 avail, u16 limit) {
   if (avail == 0)
     return 0.f;
@@ -223,8 +250,10 @@ IC float compute(SWeaponScore &s) {
   float am = ammo_factor(s.ammo_available, s.ammo_limit);
   float sw = switch_factor(s.switch_time);
   float sg = shotgun_close_factor(s.enemy_dist, s.weapon_ef_type);
+  float gz = gauss_factor(s.enemy_dist, s.enemy, s.is_gauss);
+  float ml = melee_factor(s.enemy_dist, s.weapon_ef_type);
 
-  float total = s.hit_power * a * r * c * g * cl * am * sw * sg;
+  float total = s.hit_power * a * r * c * g * cl * am * sw * sg * gz * ml;
 
   s.accuracy = a;
   s.recoil = r;
@@ -234,6 +263,8 @@ IC float compute(SWeaponScore &s) {
   s.ammo = am;
   s.sw = sw;
   s.shotgun = sg;
+  s.gauss = gz;
+  s.melee = ml;
   s.total = total;
   return total;
 }

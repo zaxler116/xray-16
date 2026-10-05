@@ -77,6 +77,16 @@ IC float recoil_factor(float dist, float min_range);
 // shotgun penalty at very close range (<8 m).
 IC float shotgun_close_factor(float dist, u32 weapon_ef_type);
 
+// gauss (single-shot anti-materiel): hopeless in close combat, wasteful
+// against light enemies.
+IC float gauss_factor(float dist, EAlifeEnemyType enemy, bool is_gauss);
+
+// knife: bonus at point-blank range, useless at long range.
+IC float melee_factor(float dist, u32 weapon_ef_type);
+
+// section-name test: true when the weapon section is the gauss.
+IC bool weapon_is_gauss(LPCSTR section);
+
 // --- ammo / switch factors ------------------------------------------
 
 IC float ammo_factor(u32 ammo_available, u16 ammo_limit);
@@ -87,6 +97,7 @@ IC float switch_factor(float switch_time);
 struct SWeaponScore {
   u32 weapon_ef_type;
   bool has_gl_addon;
+  bool is_gauss;
   u32 ammo_available;
   u16 ammo_limit;
   float hit_power;
@@ -106,13 +117,15 @@ struct SWeaponScore {
   float ammo;
   float sw;
   float shotgun;
+  float gauss;
+  float melee;
 
   SWeaponScore()
-      : weapon_ef_type(0), has_gl_addon(false), ammo_available(0),
-        ammo_limit(0), hit_power(0.f), switch_time(0.f), min_range(0.f),
-        enemy_dist(0.f), enemy(eEnemyLast), cluster_count(0), total(0.f),
-        accuracy(0.f), recoil(0.f), cls(0.f), gl(0.f), cluster(0.f), ammo(0.f),
-        sw(0.f), shotgun(0.f) {}
+      : weapon_ef_type(0), has_gl_addon(false), is_gauss(false),
+        ammo_available(0), ammo_limit(0), hit_power(0.f), switch_time(0.f),
+        min_range(0.f), enemy_dist(0.f), enemy(eEnemyLast), cluster_count(0),
+        total(0.f), accuracy(0.f), recoil(0.f), cls(0.f), gl(0.f), cluster(0.f),
+        ammo(0.f), sw(0.f), shotgun(0.f), gauss(0.f), melee(0.f) {}
 };
 
 // computes score.total from all fields (also fills the per-factor

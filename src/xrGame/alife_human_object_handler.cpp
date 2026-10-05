@@ -7,24 +7,25 @@
 ////////////////////////////////////////////////////////////////////////////
 
 #include "StdAfx.h"
+
 #include "alife_human_object_handler.h"
-#include "xrServer_Objects_ALife_Monsters.h"
+
 #include "alife_communication_space.h"
+
 #include "alife_object_registry.h"
 #include "xrServer_Objects_ALife_Monsters.h"
 
-
 // Stage 2.2: needed by best_detector() to reach member->brain().objects()
-#include "alife_human_brain.h"
 #include "alife_graph_registry.h"
-#include "ef_storage.h"
-#include "ef_primary.h"
+#include "alife_human_brain.h"
 #include "ef_pattern.h"
+#include "ef_primary.h"
+#include "ef_storage.h"
 
 // N.2: trade "need" core (see item_keep_count / item_is_keepable below)
-#include <cmath>
-#include "xrServer_Objects_ALife_Items.h"
 #include "alife_weapon_score.h"
+#include "xrServer_Objects_ALife_Items.h"
+#include <cmath>
 
 // CRemoveAttachedItemsPredicate now lives in alife_communication_space.h
 // (shared with the communication manager, Stage 4.7).
@@ -97,8 +98,10 @@ void CALifeHumanObjectHandler::attach_available_ammo(
         (!objects || (std::find(objects->begin(), objects->end(),
                                 l_tpALifeItemAmmo->ID) == objects->end()))) {
       if (!objects)
-        const_cast<CALifeSimulator &>(ai().alife()).graph().attach(*m_object, l_tpALifeItemAmmo,
-                                    l_tpALifeItemAmmo->m_tGraphID);
+        const_cast<CALifeSimulator &>(ai().alife())
+            .graph()
+            .attach(*m_object, l_tpALifeItemAmmo,
+                    l_tpALifeItemAmmo->m_tGraphID);
       else
         m_object->children.push_back(l_tpALifeItemAmmo->ID);
       ++l_dwCount;
@@ -176,20 +179,22 @@ void CALifeHumanObjectHandler::collect_ammo_boxes() {
 }
 // Stage 3.4: 2003 ifChooseEquipment (save L369-410) was a stub - the
 // game design forbids stalkers from changing their equipment.
-int CALifeHumanObjectHandler::choose_equipment(ALife::OBJECT_VECTOR* objects) { return (0); }
+int CALifeHumanObjectHandler::choose_equipment(ALife::OBJECT_VECTOR *objects) {
+  return (0);
+}
 // Stage 3.4: 2003 ifChooseWeapon (save L412-485). Picks the most valuable
 // weapon of the requested priority class among the detected items,
 // attaches it plus its ammo boxes, then prunes m_temp_item_vector.
 // Money check dropped (no m_dwTotalMoney in 2005; Stage 4 handles
 // trading money).
 int CALifeHumanObjectHandler::choose_weapon(
-    const ALife::EWeaponPriorityType& weapon_priority_type, ALife::OBJECT_VECTOR* objects)
-{
-  object_type& object = *m_object;
-  ALife::ITEM_P_VECTOR& items =
-      const_cast<ALife::ITEM_P_VECTOR&>(ai().alife().m_temp_item_vector);
+    const ALife::EWeaponPriorityType &weapon_priority_type,
+    ALife::OBJECT_VECTOR *objects) {
+  object_type &object = *m_object;
+  ALife::ITEM_P_VECTOR &items =
+      const_cast<ALife::ITEM_P_VECTOR &>(ai().alife().m_temp_item_vector);
 
-  CSE_ALifeInventoryItem* l_tpALifeItemBest = 0;
+  CSE_ALifeInventoryItem *l_tpALifeItemBest = 0;
   float l_fItemBestValue = -1.f;
   ai().ef_storage().alife_evaluation(true);
   ai().ef_storage().alife().member() = &object;
@@ -199,7 +204,7 @@ int CALifeHumanObjectHandler::choose_weapon(
   for (; I != E; ++I) {
     // checking if it is a hand weapon
     ai().ef_storage().alife().member_item() =
-        const_cast<CSE_ALifeObject*>(smart_cast<CSE_ALifeObject*>(*I));
+        const_cast<CSE_ALifeObject *>(smart_cast<CSE_ALifeObject *>(*I));
     int j = ai().ef_storage().m_pfPersonalWeaponType->dwfGetWeaponType();
     float l_fCurrentValue = -1.f;
     switch (weapon_priority_type) {
@@ -232,8 +237,8 @@ int CALifeHumanObjectHandler::choose_weapon(
     }
     // choosing the best item
     if ((l_fCurrentValue > l_fItemBestValue) && can_take_item(*I) &&
-        (!objects ||
-         (std::find(objects->begin(), objects->end(), (*I)->base()->ID) == objects->end()))) {
+        (!objects || (std::find(objects->begin(), objects->end(),
+                                (*I)->base()->ID) == objects->end()))) {
       l_fItemBestValue = l_fCurrentValue;
       l_tpALifeItemBest = *I;
     }
@@ -243,18 +248,20 @@ int CALifeHumanObjectHandler::choose_weapon(
     u32 l_dwCount = object.children.size();
 
     if (!objects)
-      const_cast<CALifeSimulator&>(ai().alife())
+      const_cast<CALifeSimulator &>(ai().alife())
           .graph()
           .attach(object, l_tpALifeItemBest,
-                   smart_cast<CSE_ALifeDynamicObject*>(l_tpALifeItemBest)->m_tGraphID);
+                  smart_cast<CSE_ALifeDynamicObject *>(l_tpALifeItemBest)
+                      ->m_tGraphID);
     else
       object.children.push_back(l_tpALifeItemBest->base()->ID);
 
-    attach_available_ammo(smart_cast<CSE_ALifeItemWeapon*>(l_tpALifeItemBest), items, objects);
+    attach_available_ammo(smart_cast<CSE_ALifeItemWeapon *>(l_tpALifeItemBest),
+                          items, objects);
 
     if (!objects) {
-      ALife::ITEM_P_VECTOR::iterator it =
-          std::remove_if(items.begin(), items.end(), CRemoveAttachedItemsPredicate());
+      ALife::ITEM_P_VECTOR::iterator it = std::remove_if(
+          items.begin(), items.end(), CRemoveAttachedItemsPredicate());
       items.erase(it, items.end());
     }
     return (object.children.size() - l_dwCount);
@@ -265,11 +272,10 @@ int CALifeHumanObjectHandler::choose_weapon(
 // Stage 3.4: 2003 ifChooseFood (save L487-523). Money check dropped
 // (see choose_weapon). MAX_ITEM_FOOD_COUNT = 1, same value as
 // ai_stalker_alife.cpp.
-int CALifeHumanObjectHandler::choose_food(ALife::OBJECT_VECTOR* objects)
-{
-  object_type& object = *m_object;
-  ALife::ITEM_P_VECTOR& items =
-      const_cast<ALife::ITEM_P_VECTOR&>(ai().alife().m_temp_item_vector);
+int CALifeHumanObjectHandler::choose_food(ALife::OBJECT_VECTOR *objects) {
+  object_type &object = *m_object;
+  ALife::ITEM_P_VECTOR &items =
+      const_cast<ALife::ITEM_P_VECTOR &>(ai().alife().m_temp_item_vector);
   constexpr u32 MAX_ITEM_FOOD_COUNT = 1;
 
   ai().ef_storage().alife_evaluation(true);
@@ -282,12 +288,13 @@ int CALifeHumanObjectHandler::choose_food(ALife::OBJECT_VECTOR* objects)
     if ((*I)->m_iFoodValue <= 0)
       continue;
     if (can_take_item(*I) &&
-        (!objects ||
-         (std::find(objects->begin(), objects->end(), (*I)->base()->ID) == objects->end()))) {
+        (!objects || (std::find(objects->begin(), objects->end(),
+                                (*I)->base()->ID) == objects->end()))) {
       if (!objects)
-        const_cast<CALifeSimulator&>(ai().alife())
+        const_cast<CALifeSimulator &>(ai().alife())
             .graph()
-            .attach(object, *I, smart_cast<CSE_ALifeDynamicObject*>(*I)->m_tGraphID);
+            .attach(object, *I,
+                    smart_cast<CSE_ALifeDynamicObject *>(*I)->m_tGraphID);
       else
         object.children.push_back((*I)->base()->ID);
       ++l_dwCount;
@@ -297,19 +304,18 @@ int CALifeHumanObjectHandler::choose_food(ALife::OBJECT_VECTOR* objects)
   }
 
   if (l_dwCount && !objects) {
-    ALife::ITEM_P_VECTOR::iterator it =
-        std::remove_if(items.begin(), items.end(), CRemoveAttachedItemsPredicate());
+    ALife::ITEM_P_VECTOR::iterator it = std::remove_if(
+        items.begin(), items.end(), CRemoveAttachedItemsPredicate());
     items.erase(it, items.end());
   }
   return (l_dwCount);
 }
 // Stage 3.4: 2003 ifChooseMedikit (save L525-557). Money check dropped
 // (see choose_weapon). MAX_ITEM_MEDIKIT_COUNT = 1.
-int CALifeHumanObjectHandler::choose_medikit(ALife::OBJECT_VECTOR* objects)
-{
-  object_type& object = *m_object;
-  ALife::ITEM_P_VECTOR& items =
-      const_cast<ALife::ITEM_P_VECTOR&>(ai().alife().m_temp_item_vector);
+int CALifeHumanObjectHandler::choose_medikit(ALife::OBJECT_VECTOR *objects) {
+  object_type &object = *m_object;
+  ALife::ITEM_P_VECTOR &items =
+      const_cast<ALife::ITEM_P_VECTOR &>(ai().alife().m_temp_item_vector);
   constexpr u32 MAX_ITEM_MEDIKIT_COUNT = 1;
 
   u32 l_dwCount = 0;
@@ -319,12 +325,13 @@ int CALifeHumanObjectHandler::choose_medikit(ALife::OBJECT_VECTOR* objects)
     if ((*I)->m_iHealthValue <= 0)
       continue;
     if (can_take_item(*I) &&
-        (!objects ||
-         (std::find(objects->begin(), objects->end(), (*I)->base()->ID) == objects->end()))) {
+        (!objects || (std::find(objects->begin(), objects->end(),
+                                (*I)->base()->ID) == objects->end()))) {
       if (!objects)
-        const_cast<CALifeSimulator&>(ai().alife())
+        const_cast<CALifeSimulator &>(ai().alife())
             .graph()
-            .attach(object, *I, smart_cast<CSE_ALifeDynamicObject*>(*I)->m_tGraphID);
+            .attach(object, *I,
+                    smart_cast<CSE_ALifeDynamicObject *>(*I)->m_tGraphID);
       else
         object.children.push_back((*I)->base()->ID);
       ++l_dwCount;
@@ -334,8 +341,8 @@ int CALifeHumanObjectHandler::choose_medikit(ALife::OBJECT_VECTOR* objects)
   }
 
   if (l_dwCount && !objects) {
-    ALife::ITEM_P_VECTOR::iterator it =
-        std::remove_if(items.begin(), items.end(), CRemoveAttachedItemsPredicate());
+    ALife::ITEM_P_VECTOR::iterator it = std::remove_if(
+        items.begin(), items.end(), CRemoveAttachedItemsPredicate());
     items.erase(it, items.end());
   }
   return (l_dwCount);
@@ -343,13 +350,12 @@ int CALifeHumanObjectHandler::choose_medikit(ALife::OBJECT_VECTOR* objects)
 // Stage 3.4: 2003 ifChooseDetector (save L559-597). Evaluates each
 // detected detector with m_pfEquipmentType and keeps the best one.
 // Money check dropped (see choose_weapon).
-int CALifeHumanObjectHandler::choose_detector(ALife::OBJECT_VECTOR* objects)
-{
-  object_type& object = *m_object;
-  ALife::ITEM_P_VECTOR& items =
-      const_cast<ALife::ITEM_P_VECTOR&>(ai().alife().m_temp_item_vector);
+int CALifeHumanObjectHandler::choose_detector(ALife::OBJECT_VECTOR *objects) {
+  object_type &object = *m_object;
+  ALife::ITEM_P_VECTOR &items =
+      const_cast<ALife::ITEM_P_VECTOR &>(ai().alife().m_temp_item_vector);
 
-  CSE_ALifeInventoryItem* l_tpALifeItemBest = 0;
+  CSE_ALifeInventoryItem *l_tpALifeItemBest = 0;
   float l_fItemBestValue = -1.f;
   ai().ef_storage().alife_evaluation(true);
   ai().ef_storage().alife().member() = &object;
@@ -357,18 +363,19 @@ int CALifeHumanObjectHandler::choose_detector(ALife::OBJECT_VECTOR* objects)
   ALife::ITEM_P_VECTOR::const_iterator I = items.begin(), X;
   ALife::ITEM_P_VECTOR::const_iterator E = items.end();
   for (; I != E; ++I) {
-    CSE_ALifeItemDetector* l_tpALifeItem = smart_cast<CSE_ALifeItemDetector*>(*I);
+    CSE_ALifeItemDetector *l_tpALifeItem =
+        smart_cast<CSE_ALifeItemDetector *>(*I);
     if (!l_tpALifeItem)
       continue;
     // evaluating item
-    ai().ef_storage().alife().member_item() =
-        const_cast<CSE_ALifeObject*>(smart_cast<CSE_ALifeObject*>(l_tpALifeItem));
+    ai().ef_storage().alife().member_item() = const_cast<CSE_ALifeObject *>(
+        smart_cast<CSE_ALifeObject *>(l_tpALifeItem));
     float l_fCurrentValue = ai().ef_storage().m_pfEquipmentType->ffGetValue();
     // choosing the best item
     if ((l_fCurrentValue > l_fItemBestValue) && can_take_item(l_tpALifeItem) &&
         (!objects ||
-         (std::find(objects->begin(), objects->end(), l_tpALifeItem->base()->ID) ==
-          objects->end()))) {
+         (std::find(objects->begin(), objects->end(),
+                    l_tpALifeItem->base()->ID) == objects->end()))) {
       l_fItemBestValue = l_fCurrentValue;
       l_tpALifeItemBest = l_tpALifeItem;
       X = I;
@@ -377,10 +384,11 @@ int CALifeHumanObjectHandler::choose_detector(ALife::OBJECT_VECTOR* objects)
 
   if (l_tpALifeItemBest) {
     if (!objects) {
-      const_cast<CALifeSimulator&>(ai().alife())
+      const_cast<CALifeSimulator &>(ai().alife())
           .graph()
           .attach(object, l_tpALifeItemBest,
-                   smart_cast<CSE_ALifeDynamicObject*>(l_tpALifeItemBest)->m_tGraphID);
+                  smart_cast<CSE_ALifeDynamicObject *>(l_tpALifeItemBest)
+                      ->m_tGraphID);
       items.erase(X);
     } else
       object.children.push_back(l_tpALifeItemBest->base()->ID);
@@ -391,23 +399,23 @@ int CALifeHumanObjectHandler::choose_detector(ALife::OBJECT_VECTOR* objects)
 // Stage 3.4: 2003 ifChooseValuables (save L599-614): attach the rest
 // of the detected items that fit the mass budget, then prune the
 // list.
-int CALifeHumanObjectHandler::choose_valuables()
-{
-  object_type& object = *m_object;
-  ALife::ITEM_P_VECTOR& items =
-      const_cast<ALife::ITEM_P_VECTOR&>(ai().alife().m_temp_item_vector);
+int CALifeHumanObjectHandler::choose_valuables() {
+  object_type &object = *m_object;
+  ALife::ITEM_P_VECTOR &items =
+      const_cast<ALife::ITEM_P_VECTOR &>(ai().alife().m_temp_item_vector);
 
   ALife::ITEM_P_VECTOR::const_iterator I = items.begin();
   ALife::ITEM_P_VECTOR::const_iterator E = items.end();
   for (; I != E; ++I)
     if (can_take_item(*I))
-      const_cast<CALifeSimulator&>(ai().alife())
+      const_cast<CALifeSimulator &>(ai().alife())
           .graph()
-          .attach(object, *I, smart_cast<CSE_ALifeDynamicObject*>(*I)->m_tGraphID);
+          .attach(object, *I,
+                  smart_cast<CSE_ALifeDynamicObject *>(*I)->m_tGraphID);
 
   u32 l_dwCount = object.children.size();
-  ALife::ITEM_P_VECTOR::iterator it =
-      std::remove_if(items.begin(), items.end(), CRemoveAttachedItemsPredicate());
+  ALife::ITEM_P_VECTOR::iterator it = std::remove_if(
+      items.begin(), items.end(), CRemoveAttachedItemsPredicate());
   items.erase(it, items.end());
 
   return (object.children.size() - l_dwCount);
@@ -415,11 +423,10 @@ int CALifeHumanObjectHandler::choose_valuables()
 // Stage 3.3: 2003 CSE_ALifeHumanAbstract::bfChooseFast (save L335-367):
 // quick check whether the human can grab every detected item at once
 // (mass budget). Volume check dropped: no m_iVolume in 2005.
-bool CALifeHumanObjectHandler::choose_fast()
-{
-  object_type& object = *m_object;
-  ALife::ITEM_P_VECTOR& items =
-      const_cast<ALife::ITEM_P_VECTOR&>(ai().alife().m_temp_item_vector);
+bool CALifeHumanObjectHandler::choose_fast() {
+  object_type &object = *m_object;
+  ALife::ITEM_P_VECTOR &items =
+      const_cast<ALife::ITEM_P_VECTOR &>(ai().alife().m_temp_item_vector);
 
   u32 l_dwCurrentItemCount = object.children.size();
   float l_fCumulativeItemMass = object.m_fCumulativeItemMass;
@@ -442,9 +449,10 @@ bool CALifeHumanObjectHandler::choose_fast()
   if (l_bOk) {
     I = items.begin();
     for (; I != E; ++I)
-      const_cast<CALifeSimulator&>(ai().alife())
+      const_cast<CALifeSimulator &>(ai().alife())
           .graph()
-          .attach(object, *I, smart_cast<CSE_ALifeDynamicObject*>(*I)->m_tGraphID);
+          .attach(object, *I,
+                  smart_cast<CSE_ALifeDynamicObject *>(*I)->m_tGraphID);
     return (true);
   }
 
@@ -453,39 +461,41 @@ bool CALifeHumanObjectHandler::choose_fast()
 // Stage 3.6: 2003 CSE_ALifeHumanAbstract::vfChooseGroup (save L64-87):
 // every group member first takes the minimum set (Min), then the
 // rest of the items (Rest), one by one.
-void CALifeHumanObjectHandler::choose_group(CSE_ALifeGroupAbstract* group_abstract)
-{
+void CALifeHumanObjectHandler::choose_group(
+    CSE_ALifeGroupAbstract *group_abstract) {
   ALife::OBJECT_IT I = group_abstract->m_tpMembers.begin();
   ALife::OBJECT_IT E = group_abstract->m_tpMembers.end();
   for (; I != E; ++I) {
-    CSE_ALifeHumanAbstract* l_tpALifeHumanAbstract =
-        smart_cast<CSE_ALifeHumanAbstract*>(ai().alife().objects().object(*I));
+    CSE_ALifeHumanAbstract *l_tpALifeHumanAbstract =
+        smart_cast<CSE_ALifeHumanAbstract *>(ai().alife().objects().object(*I));
     R_ASSERT2(l_tpALifeHumanAbstract, "Invalid group member");
-    l_tpALifeHumanAbstract->brain().objects().attach_items_pick(ALife::eTakeTypeMin);
+    l_tpALifeHumanAbstract->brain().objects().attach_items_pick(
+        ALife::eTakeTypeMin);
   }
 
   I = group_abstract->m_tpMembers.begin();
   E = group_abstract->m_tpMembers.end();
   for (; I != E; ++I) {
-    CSE_ALifeHumanAbstract* l_tpALifeHumanAbstract =
-        smart_cast<CSE_ALifeHumanAbstract*>(ai().alife().objects().object(*I));
+    CSE_ALifeHumanAbstract *l_tpALifeHumanAbstract =
+        smart_cast<CSE_ALifeHumanAbstract *>(ai().alife().objects().object(*I));
     R_ASSERT2(l_tpALifeHumanAbstract, "Invalid group member");
-    l_tpALifeHumanAbstract->brain().objects().attach_items_pick(ALife::eTakeTypeRest);
+    l_tpALifeHumanAbstract->brain().objects().attach_items_pick(
+        ALife::eTakeTypeRest);
   }
 }
 // Stage 4.9: 2003 vfDetachAll logic (save L264-279).
 // Detaches all children one by one (so graph().detach can re-add each item
 // to the graph level), then resets the cumulative mass/volume fields.
 void CALifeHumanObjectHandler::detach_all(bool fictitious) {
-  object_type& object = *m_object;
-  CALifeSimulator& simulator = const_cast<CALifeSimulator&>(ai().alife());
+  object_type &object = *m_object;
+  CALifeSimulator &simulator = const_cast<CALifeSimulator &>(ai().alife());
   while (!object.children.empty()) {
-    CSE_ALifeInventoryItem* item = smart_cast<CSE_ALifeInventoryItem*>(
+    CSE_ALifeInventoryItem *item = smart_cast<CSE_ALifeInventoryItem *>(
         ai().alife().objects().object(object.children.front()));
     R_ASSERT2(item, "Invalid inventory object");
     if (!fictitious) {
-      simulator.graph().detach(*object.base(), item, object.m_tGraphID,
-                               true, true);
+      simulator.graph().detach(*object.base(), item, object.m_tGraphID, true,
+                               true);
     } else {
       ALife::OBJECT_IT I = object.children.begin();
       object.detach(item, &I, true, true);
@@ -540,22 +550,22 @@ void CALifeHumanObjectHandler::update_weapon_ammo() {
 // the useful offline ones (detection probability fixed at 1.0f - the
 // 2003 m_detect_probability field has no 2005 counterpart), then
 // attach the collected items via attach_items().
-void CALifeHumanObjectHandler::process_items()
-{
-  ALife::ITEM_P_VECTOR& items = const_cast<ALife::ITEM_P_VECTOR&>(ai().alife().m_temp_item_vector);
+void CALifeHumanObjectHandler::process_items() {
+  ALife::ITEM_P_VECTOR &items =
+      const_cast<ALife::ITEM_P_VECTOR &>(ai().alife().m_temp_item_vector);
   items.clear();
 
-  const CALifeSimulator& sim = ai().alife();
-  const CSE_ALifeDynamicObject* self = m_object;
+  const CALifeSimulator &sim = ai().alife();
+  const CSE_ALifeDynamicObject *self = m_object;
   const GameGraph::_GRAPH_ID gid = self->m_tGraphID;
 
-  const CALifeGraphRegistry::OBJECT_REGISTRY& reg =
-      const_cast<CALifeGraphRegistry::GRAPH_REGISTRY&>(
+  const CALifeGraphRegistry::OBJECT_REGISTRY &reg =
+      const_cast<CALifeGraphRegistry::GRAPH_REGISTRY &>(
           ai().alife().graph().objects())[gid]
           .objects();
-  for (auto& pair : reg.objects()) {
-    CSE_ALifeInventoryItem* item =
-        smart_cast<CSE_ALifeInventoryItem*>(pair.second);
+  for (auto &pair : reg.objects()) {
+    CSE_ALifeInventoryItem *item =
+        smart_cast<CSE_ALifeInventoryItem *>(pair.second);
     if (!item || !item->bfUseful() || pair.second->m_bOnline)
       continue;
 
@@ -611,34 +621,39 @@ CSE_ALifeDynamicObject *CALifeHumanObjectHandler::best_detector() {
 // W.2: combat context (call sites: CALifeCombatManager::vfUpdateCombatTargets).
 // Consumed by W.3's situation-aware best_weapon().
 void CALifeHumanObjectHandler::set_combat_target(
-    const Fvector& target_pos, CSE_ALifeMonsterAbstract* enemy,
-    const Fvector* enemy_positions, int enemy_count)
-{
-    m_combat_target_pos = target_pos;
-    m_combat_target_enemy = enemy;
-    m_combat_enemy_positions.resize(enemy_count > 0 ? enemy_count : 0);
-    for (int i = 0; i < enemy_count; ++i)
-        m_combat_enemy_positions[i] = enemy_positions[i];
-    m_bHasCombatTarget = true;
+    const Fvector &target_pos, CSE_ALifeMonsterAbstract *enemy,
+    const Fvector *enemy_positions, int enemy_count) {
+  m_combat_target_pos = target_pos;
+  m_combat_target_enemy = enemy;
+  m_combat_enemy_positions.resize(enemy_count > 0 ? enemy_count : 0);
+  for (int i = 0; i < enemy_count; ++i)
+    m_combat_enemy_positions[i] = enemy_positions[i];
+  m_bHasCombatTarget = true;
 }
 
-void CALifeHumanObjectHandler::reset_combat_target()
-{
-    m_combat_target_enemy = 0;
-    m_combat_enemy_positions.clear();
-    m_bHasCombatTarget = false;
+void CALifeHumanObjectHandler::reset_combat_target() {
+  m_combat_target_enemy = 0;
+  m_combat_enemy_positions.clear();
+  m_bHasCombatTarget = false;
 }
 
-bool CALifeHumanObjectHandler::has_combat_target() const { return m_bHasCombatTarget; }
+bool CALifeHumanObjectHandler::has_combat_target() const {
+  return m_bHasCombatTarget;
+}
 
-CSE_ALifeMonsterAbstract* CALifeHumanObjectHandler::combat_target_enemy() const { return m_combat_target_enemy; }
+CSE_ALifeMonsterAbstract *
+CALifeHumanObjectHandler::combat_target_enemy() const {
+  return m_combat_target_enemy;
+}
 
-const Fvector& CALifeHumanObjectHandler::combat_target_pos() const { return m_combat_target_pos; }
+const Fvector &CALifeHumanObjectHandler::combat_target_pos() const {
+  return m_combat_target_pos;
+}
 
-const Fvector* CALifeHumanObjectHandler::combat_enemy_positions(int& count) const
-{
-    count = (int)m_combat_enemy_positions.size();
-    return m_combat_enemy_positions.empty() ? 0 : &m_combat_enemy_positions[0];
+const Fvector *
+CALifeHumanObjectHandler::combat_enemy_positions(int &count) const {
+  count = (int)m_combat_enemy_positions.size();
+  return m_combat_enemy_positions.empty() ? 0 : &m_combat_enemy_positions[0];
 }
 
 CSE_ALifeItemWeapon *CALifeHumanObjectHandler::best_weapon() {
@@ -657,8 +672,7 @@ CSE_ALifeItemWeapon *CALifeHumanObjectHandler::best_weapon() {
 
   float l_fDist = 0.f;
   int l_iCluster = 0;
-  AlifeWeaponScore::EAlifeEnemyType l_tEnemy =
-      AlifeWeaponScore::eEnemyMedium;
+  AlifeWeaponScore::EAlifeEnemyType l_tEnemy = AlifeWeaponScore::eEnemyMedium;
   if (has_ctx) {
     l_fDist = object.draw_level_position().distance_to(m_combat_target_pos);
     int n;
@@ -668,9 +682,9 @@ CSE_ALifeItemWeapon *CALifeHumanObjectHandler::best_weapon() {
         ++l_iCluster;
     CSE_ALifeMonsterAbstract *enemy = combat_target_enemy();
     if (enemy)
-      l_tEnemy = AlifeWeaponScore::classify_enemy(
-          enemy->ef_creature_type(), enemy->m_fMaxHealthValue,
-          enemy->s_name.c_str());
+      l_tEnemy = AlifeWeaponScore::classify_enemy(enemy->ef_creature_type(),
+                                                  enemy->m_fMaxHealthValue,
+                                                  enemy->s_name.c_str());
   }
 
   ALife::OBJECT_IT I = object.children.begin();
@@ -682,8 +696,7 @@ CSE_ALifeItemWeapon *CALifeHumanObjectHandler::best_weapon() {
       continue;
 
     w->m_dwAmmoAvailable = get_available_ammo_count(w, object.children);
-    if (!(w->m_dwAmmoAvailable || (!w->get_slot()) ||
-          (3 == w->get_slot())))
+    if (!(w->m_dwAmmoAvailable || (!w->get_slot()) || (3 == w->get_slot())))
       continue;
 
     float l_fScore;
@@ -693,18 +706,22 @@ CSE_ALifeItemWeapon *CALifeHumanObjectHandler::best_weapon() {
       AlifeWeaponScore::SWeaponScore s;
       s.weapon_ef_type = w->ef_weapon_type();
       s.has_gl_addon = (w->m_grenade_launcher_status != ALife::eAddonDisabled);
+      s.is_gauss = AlifeWeaponScore::weapon_is_gauss(w->s_name.c_str());
       // no ammo section (knife etc.) -> unlimited
-      s.ammo_available = w->m_caAmmoSections ? w->m_dwAmmoAvailable
-                                             : u16(-1);
+      s.ammo_available = w->m_caAmmoSections ? w->m_dwAmmoAvailable : u16(-1);
       s.ammo_limit = w->get_ammo_limit();
       s.hit_power = w->m_fHitPower;
       s.switch_time = 0.f;
-      // grenade launcher / underbarrel: no firing under 50 m
-      s.min_range = (s.has_gl_addon ||
-                     (s.weapon_ef_type ==
-                      AlifeWeaponScore::efW_GrenadeLauncher))
-                        ? 50.f
-                        : 0.f;
+      // grenade launcher / underbarrel: no firing under 50 m.
+      // W.4: per-weapon override via the weapon section key
+      // "alife_min_range" (default = the hardcoded rule above).
+      const float l_fDefaultMinRange =
+          (s.has_gl_addon ||
+           (s.weapon_ef_type == AlifeWeaponScore::efW_GrenadeLauncher))
+              ? 50.f
+              : 0.f;
+      s.min_range = pSettings->read_if_exists<float>(
+          w->s_name.c_str(), "alife_min_range", l_fDefaultMinRange);
       s.enemy_dist = l_fDist;
       s.enemy = l_tEnemy;
       s.cluster_count = l_iCluster;
@@ -729,9 +746,11 @@ CSE_ALifeItemWeapon *CALifeHumanObjectHandler::best_weapon() {
 
 // 2003: most expensive items first (save L5-10).
 struct CSortItemPredicate {
-  IC bool operator()(const CSE_ALifeInventoryItem *tpALifeInventoryItem1,
-                     const CSE_ALifeInventoryItem *tpALifeInventoryItem2) const {
-    return (float(tpALifeInventoryItem1->m_dwCost) > float(tpALifeInventoryItem2->m_dwCost));
+  IC bool
+  operator()(const CSE_ALifeInventoryItem *tpALifeInventoryItem1,
+             const CSE_ALifeInventoryItem *tpALifeInventoryItem2) const {
+    return (float(tpALifeInventoryItem1->m_dwCost) >
+            float(tpALifeInventoryItem2->m_dwCost));
   };
 };
 
@@ -739,13 +758,13 @@ struct CSortItemPredicate {
 // order (save L636-648). Min = food/weapons/medikit/detector/equipment;
 // Rest = valuables. Used by choose_group() to let group members take
 // items one by one.
-void CALifeHumanObjectHandler::attach_items_pick(ALife::ETakeType tTakeType)
-{
-  ALife::ITEM_P_VECTOR& items =
-      const_cast<ALife::ITEM_P_VECTOR&>(ai().alife().m_temp_item_vector);
+void CALifeHumanObjectHandler::attach_items_pick(ALife::ETakeType tTakeType) {
+  ALife::ITEM_P_VECTOR &items =
+      const_cast<ALife::ITEM_P_VECTOR &>(ai().alife().m_temp_item_vector);
   std::sort(items.begin(), items.end(), CSortItemPredicate());
 
-  if ((ALife::eTakeTypeAll == tTakeType) || (ALife::eTakeTypeMin == tTakeType)) {
+  if ((ALife::eTakeTypeAll == tTakeType) ||
+      (ALife::eTakeTypeMin == tTakeType)) {
     choose_food();
     choose_weapon(ALife::eWeaponPriorityTypeKnife);
     choose_weapon(ALife::eWeaponPriorityTypeSecondary);
@@ -760,26 +779,23 @@ void CALifeHumanObjectHandler::attach_items_pick(ALife::ETakeType tTakeType)
     choose_valuables();
 }
 
-
 // Stage 3.5: 2003 CSE_ALifeHumanAbstract::vfAttachItems (save L616-649):
 // groups delegate to choose_group, a fast pass grabs everything at once,
 // otherwise the item list is sorted by cost and the choose_* methods are
 // called in the 2003 order. eTakeTypeAll additionally detaches the current
 // inventory first (swap semantics).
-void CALifeHumanObjectHandler::attach_items()
-{
-  object_type& object = *m_object;
+void CALifeHumanObjectHandler::attach_items() {
+  object_type &object = *m_object;
   ALife::ETakeType tTakeType = ALife::eTakeTypeAll;
   R_ASSERT2(object.get_health() >= EPS_L, "Cannot attach items to dead human");
 
-  CSE_ALifeGroupAbstract* l_tpALifeGroupAbstract =
-      smart_cast<CSE_ALifeGroupAbstract*>(&object);
+  CSE_ALifeGroupAbstract *l_tpALifeGroupAbstract =
+      smart_cast<CSE_ALifeGroupAbstract *>(&object);
   if (l_tpALifeGroupAbstract) {
     choose_group(l_tpALifeGroupAbstract);
     return;
-  } else
-    if (choose_fast())
-      return;
+  } else if (choose_fast())
+    return;
 
   if (ALife::eTakeTypeAll == tTakeType) {
     detach_all(false);
@@ -795,112 +811,110 @@ void CALifeHumanObjectHandler::attach_items()
 // How many items of this type the owner must keep.
 //  - food:        ceil(m_iFoodValue * m_food_keep_days)  (>=1 if it is food)
 //  - medikit:     1 (if it heals)
-//  - ammo:        0 here; the primary-weapon reserve is handled in item_is_personal
+//  - ammo:        0 here; the primary-weapon reserve is handled in
+//  item_is_personal
 //  - weapon:      1 if it is the owner's current best primary weapon
 //  - equipment:   1 (outfits / helmets / vests are personal)
 //  - other:       0
 int CALifeHumanObjectHandler::item_keep_count(
-    CSE_ALifeInventoryItem* item, CSE_ALifeHumanAbstract* owner) const
-{
-    if (!item || !owner)
-        return 0;
-
-    // food stock
-    if (item->m_iFoodValue > 0)
-    {
-        float days = m_food_keep_days > 0.f ? m_food_keep_days : 1.f;
-        int keep = (int)std::ceil(float(item->m_iFoodValue) * days);
-        return keep > 0 ? keep : 1;
-    }
-
-    // N.5: ammo reserve for the owner's current best weapon
-    CSE_ALifeItemAmmo* ammo = smart_cast<CSE_ALifeItemAmmo*>(item);
-    if (ammo)
-        return ammo_keep_count(item, owner);
-
-    // single medikit
-    if (item->m_iHealthValue > 0)
-        return 1;
-
-    // equipment (outfit / helmet / vest) is personal
-    CSE_ALifeItemCustomOutfit* outfit = smart_cast<CSE_ALifeItemCustomOutfit*>(item);
-    if (outfit)
-        return 1;
-
-    // the owner's current best primary weapon
-    CSE_ALifeItemWeapon* wpn = smart_cast<CSE_ALifeItemWeapon*>(item);
-    if (wpn)
-    {
-        ALife::EHitType tHitType;
-        float fHitPower;
-        CSE_ALifeItemWeapon* best = owner->tpfGetBestWeapon(tHitType, fHitPower);
-        if (best && best->base()->ID == item->base()->ID)
-            return 1;
-    }
-
+    CSE_ALifeInventoryItem *item, CSE_ALifeHumanAbstract *owner) const {
+  if (!item || !owner)
     return 0;
+
+  // food stock
+  if (item->m_iFoodValue > 0) {
+    float days = m_food_keep_days > 0.f ? m_food_keep_days : 1.f;
+    int keep = (int)std::ceil(float(item->m_iFoodValue) * days);
+    return keep > 0 ? keep : 1;
+  }
+
+  // N.5: ammo reserve for the owner's current best weapon
+  CSE_ALifeItemAmmo *ammo = smart_cast<CSE_ALifeItemAmmo *>(item);
+  if (ammo)
+    return ammo_keep_count(item, owner);
+
+  // single medikit
+  if (item->m_iHealthValue > 0)
+    return 1;
+
+  // equipment (outfit / helmet / vest) is personal
+  CSE_ALifeItemCustomOutfit *outfit =
+      smart_cast<CSE_ALifeItemCustomOutfit *>(item);
+  if (outfit)
+    return 1;
+
+  // the owner's current best primary weapon
+  CSE_ALifeItemWeapon *wpn = smart_cast<CSE_ALifeItemWeapon *>(item);
+  if (wpn) {
+    ALife::EHitType tHitType;
+    float fHitPower;
+    CSE_ALifeItemWeapon *best = owner->tpfGetBestWeapon(tHitType, fHitPower);
+    if (best && best->base()->ID == item->base()->ID)
+      return 1;
+  }
+
+  return 0;
 }
 
 // How many items of the same section the owner currently carries.
 int CALifeHumanObjectHandler::item_current_count(
-    CSE_ALifeInventoryItem* item, CSE_ALifeHumanAbstract* owner) const
-{
-    if (!item || !owner)
-        return 0;
+    CSE_ALifeInventoryItem *item, CSE_ALifeHumanAbstract *owner) const {
+  if (!item || !owner)
+    return 0;
 
-    CGameObject* base = smart_cast<CGameObject*>(item->base());
-    if (!base)
-        return 0;
+  CGameObject *base = smart_cast<CGameObject *>(item->base());
+  if (!base)
+    return 0;
 
-    u32 id = base->ID();
-    int count = 0;
-    ALife::OBJECT_VECTOR::const_iterator I = owner->children.begin();
-    ALife::OBJECT_VECTOR::const_iterator E = owner->children.end();
-    for (; I != E; ++I)
-    {
-        CSE_ALifeInventoryItem* other =
-            smart_cast<CSE_ALifeInventoryItem*>(ai().alife().objects().object(*I));
-        if (!other)
-            continue;
-        CGameObject* other_base = smart_cast<CGameObject*>(other->base());
-        if (other_base && other_base->ID() == id)
-            ++count;
-    }
-    return count;
+  u32 id = base->ID();
+  int count = 0;
+  ALife::OBJECT_VECTOR::const_iterator I = owner->children.begin();
+  ALife::OBJECT_VECTOR::const_iterator E = owner->children.end();
+  for (; I != E; ++I) {
+    CSE_ALifeInventoryItem *other =
+        smart_cast<CSE_ALifeInventoryItem *>(ai().alife().objects().object(*I));
+    if (!other)
+      continue;
+    CGameObject *other_base = smart_cast<CGameObject *>(other->base());
+    if (other_base && other_base->ID() == id)
+      ++count;
+  }
+  return count;
 }
 
 int CALifeHumanObjectHandler::ammo_keep_count(
-    CSE_ALifeInventoryItem* item, CSE_ALifeHumanAbstract* owner) const
-{
-    if (!item || !owner)
-        return 0;
+    CSE_ALifeInventoryItem *item, CSE_ALifeHumanAbstract *owner) const {
+  if (!item || !owner)
+    return 0;
 
-    // the weapon whose ammo must be kept
-    ALife::EHitType tHitType;
-    float fHitPower;
-    CSE_ALifeItemWeapon* best = owner->tpfGetBestWeapon(tHitType, fHitPower);
-    if (!best || !best->m_caAmmoSections)
-        return 0;
+  // the weapon whose ammo must be kept
+  ALife::EHitType tHitType;
+  float fHitPower;
+  CSE_ALifeItemWeapon *best = owner->tpfGetBestWeapon(tHitType, fHitPower);
+  if (!best || !best->m_caAmmoSections)
+    return 0;
 
-    // does this box fit the weapon?
-    CSE_ALifeItemAmmo* ammo = smart_cast<CSE_ALifeItemAmmo*>(item);
-    if (!ammo || !strstr(best->m_caAmmoSections, ammo->s_name.c_str()))
-        return 0;
+  // does this box fit the weapon?
+  CSE_ALifeItemAmmo *ammo = smart_cast<CSE_ALifeItemAmmo *>(item);
+  if (!ammo || !strstr(best->m_caAmmoSections, ammo->s_name.c_str()))
+    return 0;
 
-    // bullets the owner currently carries for this weapon
-    u32 have = const_cast<CALifeHumanObjectHandler*>(this)->get_available_ammo_count(best, owner->children);
-    if (have == u16(-1))
-        return 0;
+  // bullets the owner currently carries for this weapon
+  u32 have =
+      const_cast<CALifeHumanObjectHandler *>(this)->get_available_ammo_count(
+          best, owner->children);
+  if (have == u16(-1))
+    return 0;
 
-    float factor = m_ammo_keep_factor > 0.f ? m_ammo_keep_factor : 1.f;
-    u32 reserve = (u32)std::ceil(float(have) * factor);
+  float factor = m_ammo_keep_factor > 0.f ? m_ammo_keep_factor : 1.f;
+  u32 reserve = (u32)std::ceil(float(have) * factor);
 
-    // whole boxes needed to keep the reserve; the box itself is never sold
-    int have_count = item_current_count(item, owner);
-    if (ammo->a_elapsed <= 0)
-        return have_count;
-    int need = (int)((reserve + ammo->a_elapsed - 1) / ammo->a_elapsed);
-    return need < have_count ? need : have_count;
+  // whole boxes needed to keep the reserve; the box itself is never sold
+  int have_count = item_current_count(item, owner);
+  if (ammo->a_elapsed <= 0)
+    return have_count;
+  int need = (int)((reserve + ammo->a_elapsed - 1) / ammo->a_elapsed);
+  return need < have_count ? need : have_count;
 }
 
 // Is this item personal (must never be sold)?
@@ -908,49 +922,47 @@ int CALifeHumanObjectHandler::ammo_keep_count(
 //  - equipment (outfit / helmet / vest)
 //  - the owner's current best primary weapon
 bool CALifeHumanObjectHandler::item_is_personal(
-    CSE_ALifeInventoryItem* item, CSE_ALifeHumanAbstract* owner) const
-{
-    if (!item || !owner)
-        return false;
-
-    // own PDA
-    CSE_ALifeItemPDA* pda = smart_cast<CSE_ALifeItemPDA*>(item);
-    if (pda && pda->m_original_owner == owner->ID)
-        return true;
-
-    // equipment
-    CSE_ALifeItemCustomOutfit* outfit = smart_cast<CSE_ALifeItemCustomOutfit*>(item);
-    if (outfit)
-        return true;
-
-    // current best primary weapon
-    CSE_ALifeItemWeapon* wpn = smart_cast<CSE_ALifeItemWeapon*>(item);
-    if (wpn)
-    {
-        ALife::EHitType tHitType;
-        float fHitPower;
-        CSE_ALifeItemWeapon* best = owner->tpfGetBestWeapon(tHitType, fHitPower);
-        if (best && best->base()->ID == item->base()->ID)
-            return true;
-    }
-
+    CSE_ALifeInventoryItem *item, CSE_ALifeHumanAbstract *owner) const {
+  if (!item || !owner)
     return false;
+
+  // own PDA
+  CSE_ALifeItemPDA *pda = smart_cast<CSE_ALifeItemPDA *>(item);
+  if (pda && pda->m_original_owner == owner->ID)
+    return true;
+
+  // equipment
+  CSE_ALifeItemCustomOutfit *outfit =
+      smart_cast<CSE_ALifeItemCustomOutfit *>(item);
+  if (outfit)
+    return true;
+
+  // current best primary weapon
+  CSE_ALifeItemWeapon *wpn = smart_cast<CSE_ALifeItemWeapon *>(item);
+  if (wpn) {
+    ALife::EHitType tHitType;
+    float fHitPower;
+    CSE_ALifeItemWeapon *best = owner->tpfGetBestWeapon(tHitType, fHitPower);
+    if (best && best->base()->ID == item->base()->ID)
+      return true;
+  }
+
+  return false;
 }
 
 // May this item be sold? (i.e. it is NOT personal and the owner already
 // carries more than the required minimum of this type)
 bool CALifeHumanObjectHandler::item_is_keepable(
-    CSE_ALifeInventoryItem* item, CSE_ALifeHumanAbstract* owner) const
-{
-    if (!item || !owner)
-        return false;
+    CSE_ALifeInventoryItem *item, CSE_ALifeHumanAbstract *owner) const {
+  if (!item || !owner)
+    return false;
 
-    if (item_is_personal(item, owner))
-        return false;
+  if (item_is_personal(item, owner))
+    return false;
 
-    int keep = item_keep_count(item, owner);
-    int have = item_current_count(item, owner);
-    return have > keep;
+  int keep = item_keep_count(item, owner);
+  int have = item_current_count(item, owner);
+  return have > keep;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -967,32 +979,33 @@ bool CALifeHumanObjectHandler::item_is_keepable(
 // not a guarantee of victory. V3 will combine it with the number of
 // remembered enemies (CWorldKnowledgeManager::enemies_near) and the
 // owner's squad size.
-bool CALifeHumanObjectHandler::combat_power_estimate(CSE_ALifeHumanAbstract* owner,
-    CSE_ALifeMonsterAbstract* enemy) const
-{
-    if (!owner || !enemy)
-        return false;
+bool CALifeHumanObjectHandler::combat_power_estimate(
+    CSE_ALifeHumanAbstract *owner, CSE_ALifeMonsterAbstract *enemy) const {
+  if (!owner || !enemy)
+    return false;
 
-    float enemy_hp = enemy->m_fMaxHealthValue > 0.f ? enemy->m_fMaxHealthValue : 100.f;
+  float enemy_hp =
+      enemy->m_fMaxHealthValue > 0.f ? enemy->m_fMaxHealthValue : 100.f;
 
-    ALife::EHitType tHitType;
-    float fHitPower;
-    CSE_ALifeItemWeapon* best = owner->tpfGetBestWeapon(tHitType, fHitPower);
-    if (!best)
-        return false;
+  ALife::EHitType tHitType;
+  float fHitPower;
+  CSE_ALifeItemWeapon *best = owner->tpfGetBestWeapon(tHitType, fHitPower);
+  if (!best)
+    return false;
 
-    // knife or secondary weapon: melee only
-    u8 slot = best->get_slot();
-    if (slot == 0 || slot == 3)
-        return enemy_hp <= 100.f;
+  // knife or secondary weapon: melee only
+  u8 slot = best->get_slot();
+  if (slot == 0 || slot == 3)
+    return enemy_hp <= 100.f;
 
-    // ranged weapon: bullets vs. enemy hp
-    ALife::OBJECT_VECTOR objects = owner->children;
-    u16 ammo = const_cast<CALifeHumanObjectHandler*>(this)->get_available_ammo_count(best, objects);
-    if (ammo == u16(-1))
-        return false;
+  // ranged weapon: bullets vs. enemy hp
+  ALife::OBJECT_VECTOR objects = owner->children;
+  u16 ammo =
+      const_cast<CALifeHumanObjectHandler *>(this)->get_available_ammo_count(
+          best, objects);
+  if (ammo == u16(-1))
+    return false;
 
-    float bullet_power = fHitPower > 0.f ? fHitPower : 10.f;
-    return float(ammo) * bullet_power * 0.5f >= enemy_hp;
+  float bullet_power = fHitPower > 0.f ? fHitPower : 10.f;
+  return float(ammo) * bullet_power * 0.5f >= enemy_hp;
 }
-
