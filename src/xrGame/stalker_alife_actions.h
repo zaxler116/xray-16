@@ -56,17 +56,45 @@ class CStalkerActionTradeWithTrader : public CStalkerActionBase
 protected:
     typedef CStalkerActionBase inherited;
 
+    enum ETradePhase
+    {
+        eTradePhaseApproach,
+        eTradePhaseCompute,
+        eTradePhaseGiveItems,
+        eTradePhaseReceiveItems,
+        eTradePhaseMirrorBack,
+        eTradePhaseDone
+    };
+
     const CEntity* m_trader_target;
     CSE_ALifeHumanAbstract* m_alife_human;
     CSE_ALifeTrader* m_alife_trader;
     u32 m_trade_time;
     float m_approach_distance_sqr;
 
+    // V1.1 - animation state
+    ETradePhase m_trade_phase;
+    u32 m_animation_start_time;
+    CGameObject* m_current_item_go;
+    shared_str m_current_item_section;
+    int m_animation_item_index;
+    int m_max_animation_items;
+
+    // V1.1 - config
+    LPCSTR m_hand_over_animation;
+    u32 m_animation_duration_ms;
+
 public:
     CStalkerActionTradeWithTrader(CAI_Stalker* object, LPCSTR action_name = "");
     virtual void initialize();
     virtual void execute();
     virtual void finalize();
+
+private:
+    void start_hand_over_animation(CGameObject* item, LPCSTR section_id);
+    void finish_hand_over_animation();
+    void compute_trade_plan();
+    void apply_trade_item(int index, bool giving);
 };
 
 //////////////////////////////////////////////////////////////////////////

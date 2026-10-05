@@ -8,6 +8,8 @@
 
 #include "pch_script.h"
 #include "stalker_alife_actions.h"
+#include "stalker_animation_manager.h"
+#include "attachable_item.h"
 #include "ai/stalker/ai_stalker.h"
 #include "inventory_item.h"
 #include "script_game_object.h"
@@ -205,7 +207,10 @@ void CStalkerActionSquadGreeting::execute()
 CStalkerActionTradeWithTrader::CStalkerActionTradeWithTrader(CAI_Stalker* object, LPCSTR action_name)
     : inherited(object, action_name),
       m_trader_target(0), m_alife_human(0), m_alife_trader(0),
-      m_trade_time(0), m_approach_distance_sqr(2.5f * 2.5f)
+      m_trade_time(0), m_approach_distance_sqr(2.5f * 2.5f),
+      m_trade_phase(eTradePhaseApproach), m_animation_start_time(0),
+      m_current_item_go(0), m_animation_item_index(0), m_max_animation_items(5),
+      m_hand_over_animation("zat_b14_give_artefact_act"), m_animation_duration_ms(3000)
 {
 }
 
@@ -214,6 +219,11 @@ void CStalkerActionTradeWithTrader::initialize()
     inherited::initialize();
 
     m_trade_time = 0;
+    m_trade_phase = eTradePhaseApproach;
+    m_animation_start_time = 0;
+    m_current_item_go = 0;
+    m_current_item_section = "";
+    m_animation_item_index = 0;
 
     // find the nearest ALife trader (same logic as the evaluator)
     m_trader_target = 0;
@@ -279,7 +289,85 @@ void CStalkerActionTradeWithTrader::finalize()
     if (!object().g_Alive())
         return;
 
+    // V1.1 - stop animation if in progress
+    if (m_trade_phase == eTradePhaseGiveItems || m_trade_phase == eTradePhaseReceiveItems)
+    {
+        object().animation().clear_script_animations();
+        if (m_current_item_go)
+        {
+            CInventoryItem* inv_item = smart_cast<CInventoryItem*>(m_current_item_go);
+            if (inv_item)
+            {
+                CAttachableItem* attachable = inv_item->cast_attachable_item();
+                if (attachable)
+                    attachable->enable(false);
+            }
+        }
+    }
+
     object().sound().remove_active_sounds(u32(eStalkerSoundMaskNoHumming));
+}
+
+void CStalkerActionTradeWithTrader::start_hand_over_animation(CGameObject* item, LPCSTR section_id)
+{
+    m_current_item_go = item;
+    m_current_item_section = section_id;
+    m_animation_start_time = Device.dwTimeGlobal;
+    m_trade_phase = eTradePhaseGiveItems;
+
+    // V1.1 - set weapon to idle
+    if (object().inventory().ActiveItem())
+        object().CObjectHandler::set_goal(eObjectActionIdle, object().inventory().ActiveItem());
+    else
+        object().CObjectHandler::set_goal(eObjectActionIdle);
+
+    // V1.1 - start hand-over animation
+    object().animation().add_script_animation(m_hand_over_animation, false, false);
+
+    // V1.1 - enable attachable item (item appears in NPC's hand)
+    if (item)
+    {
+        CInventoryItem* inv_item = smart_cast<CInventoryItem*>(item);
+        if (inv_item)
+        {
+            CAttachableItem* attachable = inv_item->cast_attachable_item();
+            if (attachable)
+                attachable->enable(true);
+        }
+    }
+}
+
+void CStalkerActionTradeWithTrader::finish_hand_over_animation()
+{
+    // V1.1 - disable attachable item (item disappears from hand)
+    if (m_current_item_go)
+    {
+        CInventoryItem* inv_item = smart_cast<CInventoryItem*>(m_current_item_go);
+        if (inv_item)
+        {
+            CAttachableItem* attachable = inv_item->cast_attachable_item();
+            if (attachable)
+                attachable->enable(false);
+        }
+    }
+
+    // V1.1 - stop animation
+    object().animation().clear_script_animations();
+
+    m_current_item_go = 0;
+    m_current_item_section = "";
+    m_trade_phase = eTradePhaseMirrorBack;
+}
+
+void CStalkerActionTradeWithTrader::compute_trade_plan()
+{
+    // V1.1 - compute what items to give/receive (placeholder for now)
+    m_trade_phase = eTradePhaseCompute;
+}
+
+void CStalkerActionTradeWithTrader::apply_trade_item(int index, bool giving)
+{
+    // V1.1 - apply trade for single item (placeholder for now)
 }
 
 void CStalkerActionTradeWithTrader::execute()
