@@ -25,13 +25,12 @@ private:
   object_type *m_object;
   object_handler_type *m_object_handler;
 
-  // old not yet obsolete stuff
+  // Stage 6.1: these fields are live again (read by CEquipmentPreference /
+  // CMainWeaponPreference in ef_primary.cpp, maintained by the human object
+  // handler and the communication manager).
 public:
   svector<char, 5> m_cpEquipmentPreferences;
   svector<char, 4> m_cpMainWeaponPreferences;
-
-  // old, to be obsolete
-public:
   u32 m_dwTotalMoney;
 
 public:
