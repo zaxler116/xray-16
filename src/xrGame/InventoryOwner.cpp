@@ -502,7 +502,7 @@ void CInventoryOwner::buy_supplies(CInifile& ini_file, LPCSTR section)
     if (!m_purchase_list)
         m_purchase_list = xr_new<CPurchaseList>();
 
-    m_purchase_list->process(ini_file, section, *this);
+    m_purchase_list->process(ini_file, section, *this, true);
 }
 
 void CInventoryOwner::sell_useless_items()
