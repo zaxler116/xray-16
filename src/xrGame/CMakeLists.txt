@@ -151,12 +151,10 @@ target_sources(xrGame PRIVATE
     alife_group_registry.h
     alife_group_registry_inline.h
     alife_human_abstract.cpp
-    alife_human_brain_save.h
     alife_human_brain_script.cpp
     alife_human_object_handler.cpp
     alife_human_object_handler.h
     alife_human_object_handler_inline.h
-    alife_human_object_handler_save.h
     alife_interaction_manager.cpp
     alife_interaction_manager.h
     alife_interaction_manager_inline.h

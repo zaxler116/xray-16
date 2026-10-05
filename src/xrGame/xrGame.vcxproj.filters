@@ -3054,16 +3054,10 @@
     <ClInclude Include="..\xrServerEntities\alife_human_brain_inline.h">
       <Filter>AI\ALife\server_entities\human\brain</Filter>
     </ClInclude>
-    <ClInclude Include="alife_human_brain_save.h">
-      <Filter>AI\ALife\server_entities\human\brain</Filter>
-    </ClInclude>
     <ClInclude Include="alife_human_object_handler.h">
       <Filter>AI\ALife\server_entities\human\object_handler</Filter>
     </ClInclude>
     <ClInclude Include="alife_human_object_handler_inline.h">
-      <Filter>AI\ALife\server_entities\human\object_handler</Filter>
-    </ClInclude>
-    <ClInclude Include="alife_human_object_handler_save.h">
       <Filter>AI\ALife\server_entities\human\object_handler</Filter>
     </ClInclude>
     <ClInclude Include="..\xrServerEntities\alife_monster_brain.h">
