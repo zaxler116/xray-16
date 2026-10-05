@@ -202,10 +202,7 @@ public:
   void vfAttachGatheredItems(CSE_ALifeTraderAbstract *tpALifeTraderAbstract1,
                              ALife::OBJECT_VECTOR &tpObjectVector);
 #endif
-  /**
-      virtual				~CALifeCommunicationManager
-  (); void		communicate_with_customer
-  (CSE_ALifeHumanAbstract		*tpALifeHumanAbstract, CSE_ALifeTrader
-  *tpALifeTrader);
-  **/
+  // Stage 4.8: live (2003 logic, adapted to the 2005 API)
+  void communicate_with_customer(CSE_ALifeHumanAbstract *tpALifeHumanAbstract,
+                                 CSE_ALifeTrader *tpALifeTrader);
 };

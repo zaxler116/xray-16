@@ -668,6 +668,135 @@ void CALifeCommunicationManager::vfPerformCommunication()
       vfPerformTrading(h1, h2);
     }
 }
+
+// Stage 4.8: live (2003 logic, adapted to the 2005 API).
+// Sells all the customer's items to the trader, then buys back what the
+// customer wants (via vfRunFunctionByIndex). 2003 called tpALifeTrader->attach
+// and tpALifeTrader->detach directly on CSE_ALifeTrader; in 2005 these live
+// on CSE_ALifeDynamicObject, so we go through base(). m_temp_item_vector is
+// a public field on CALifeSimulator, reached via const_cast.
+void CALifeCommunicationManager::communicate_with_customer(
+    CSE_ALifeHumanAbstract *tpALifeHumanAbstract, CSE_ALifeTrader *tpALifeTrader)
+{
+  CALifeSimulator &l_tpSimulator =
+      const_cast<CALifeSimulator &>(ai().alife());
+
+  // process group of stalkers
+  CSE_ALifeGroupAbstract *l_tpALifeAbstractGroup =
+      smart_cast<CSE_ALifeGroupAbstract *>(tpALifeHumanAbstract);
+  if (l_tpALifeAbstractGroup)
+  {
+    ALife::OBJECT_IT I = l_tpALifeAbstractGroup->m_tpMembers.begin();
+    ALife::OBJECT_IT E = l_tpALifeAbstractGroup->m_tpMembers.end();
+    for (; I != E; ++I)
+      communicate_with_customer(
+          smart_cast<CSE_ALifeHumanAbstract *>(
+              ai().alife().objects().object(*I)),
+          tpALifeTrader);
+    return;
+  }
+
+  // trade items
+#ifdef DEBUG
+  if (psAI_Flags.test(aiALife))
+    Msg("Selling all the items to %s", tpALifeTrader->name_replace());
+#endif
+  CSE_ALifeItemPDA *original_pda = 0;
+  tpALifeHumanAbstract->brain().m_dwTotalMoney = tpALifeHumanAbstract->m_dwMoney;
+  {
+    ALife::OBJECT_IT I = tpALifeHumanAbstract->children.begin();
+    ALife::OBJECT_IT E = tpALifeHumanAbstract->children.end();
+    for (; I != E; ++I)
+    {
+      CSE_ALifeInventoryItem *l_tpALifeInventoryItem =
+          smart_cast<CSE_ALifeInventoryItem *>(
+              ai().alife().objects().object(*I));
+      CSE_ALifeItemPDA *pda =
+          smart_cast<CSE_ALifeItemPDA *>(l_tpALifeInventoryItem);
+      if (pda && (pda->m_original_owner == tpALifeHumanAbstract->ID))
+      {
+        VERIFY(!original_pda);
+        original_pda = pda;
+      }
+      tpALifeHumanAbstract->detach(l_tpALifeInventoryItem, 0, true, false);
+      smart_cast<CSE_ALifeDynamicObject *>(tpALifeTrader->base())
+          ->attach(l_tpALifeInventoryItem, true);
+      u32 l_dwItemCost = tpALifeTrader->dwfGetItemCost(l_tpALifeInventoryItem);
+      tpALifeHumanAbstract->brain().m_dwTotalMoney += l_dwItemCost;
+      tpALifeTrader->m_dwMoney -= l_dwItemCost;
+    }
+    tpALifeHumanAbstract->children.clear();
+  }
+
+  std::sort(tpALifeTrader->children.begin(), tpALifeTrader->children.end());
+
+  tpALifeHumanAbstract->m_dwMoney = tpALifeHumanAbstract->brain().m_dwTotalMoney;
+
+  l_tpSimulator.m_temp_item_vector.clear();
+  append_item_vector(tpALifeTrader->children, l_tpSimulator.m_temp_item_vector);
+
+  m_tpBlockedItems1.clear();
+  for (int i = 0; i < 8; ++i)
+  {
+    int l_iItemCount = 0;
+    vfRunFunctionByIndex(tpALifeHumanAbstract, m_tpBlockedItems1,
+                         l_tpSimulator.m_temp_item_vector, i, l_iItemCount);
+    if (l_iItemCount)
+    {
+      vfAssignItemParents(tpALifeHumanAbstract, l_iItemCount);
+      ITEM_P_IT I = l_tpSimulator.m_temp_item_vector.begin();
+      ITEM_P_IT E = l_tpSimulator.m_temp_item_vector.end();
+      for (; I != E; ++I)
+      {
+        if (!(*I)->attached())
+          continue;
+        ALife::OBJECT_IT J = std::lower_bound(
+            tpALifeTrader->children.begin(), tpALifeTrader->children.end(),
+            (*I)->base()->ID);
+        R_ASSERT((tpALifeTrader->children.end() != J) &&
+                 (*J == (*I)->base()->ID) &&
+                 (((J + 1) == tpALifeTrader->children.end()) ||
+                  (*(J + 1) != (*I)->base()->ID)));
+        tpALifeTrader->children.erase(J);
+      }
+      ITEM_P_IT I2 = std::remove_if(
+          l_tpSimulator.m_temp_item_vector.begin(),
+          l_tpSimulator.m_temp_item_vector.end(),
+          CRemoveAttachedItemsPredicate());
+      l_tpSimulator.m_temp_item_vector.erase(I2,
+                                             l_tpSimulator.m_temp_item_vector.end());
+    }
+  }
+
+  tpALifeTrader->m_dwMoney +=
+      tpALifeHumanAbstract->m_dwMoney - tpALifeHumanAbstract->brain().m_dwTotalMoney;
+  tpALifeHumanAbstract->m_dwMoney = tpALifeHumanAbstract->brain().m_dwTotalMoney;
+  tpALifeHumanAbstract->brain().m_dwTotalMoney = u32(-1);
+
+  R_ASSERT2(int(tpALifeTrader->m_dwMoney) >= 0,
+            "Trader must have enough money to pay for the artefacts!");
+
+#ifdef DEBUG
+  if (psAI_Flags.test(aiALife))
+    Msg("Assigning correct parents");
+#endif
+#ifdef FAST_OWNERSHIP
+  vfAttachGatheredItems(tpALifeHumanAbstract, tpALifeTrader, m_tpBlockedItems1);
+  vfAttachGatheredItems(tpALifeTrader, tpALifeHumanAbstract, m_tpBlockedItems2);
+#else
+  vfAttachGatheredItems(tpALifeHumanAbstract, m_tpBlockedItems1);
+  vfAttachGatheredItems(tpALifeTrader, m_tpBlockedItems2);
+#endif
+
+  {
+    ALife::OBJECT_IT I =
+        std::find(tpALifeTrader->children.begin(), tpALifeTrader->children.end(),
+                  original_pda->ID);
+    VERIFY(I != tpALifeTrader->children.end());
+    smart_cast<CSE_ALifeDynamicObject *>(tpALifeTrader->base())->detach(original_pda);
+    tpALifeHumanAbstract->attach(original_pda, true);
+  }
+}
 // Stage 4.6: live trade checks (2003 logic, adapted to the 2005 API).
 // 2003 called brain().objects().can_take_item(0) (int overload, capacity
 // check without a concrete item); the 2005 handler only has
