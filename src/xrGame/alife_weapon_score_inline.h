@@ -204,6 +204,22 @@ IC bool weapon_is_gauss(LPCSTR section) {
   return detail::section_contains(section, "gauss");
 }
 
+IC LPCSTR enemy_type_name(EAlifeEnemyType e) {
+  switch (e) {
+  case eEnemyLight:
+    return "light";
+  case eEnemyMedium:
+    return "medium";
+  case eEnemyHeavy:
+    return "heavy";
+  case eEnemyPsy:
+    return "psy";
+  case eEnemyGrenadeTarget:
+    return "gl-target";
+  }
+  return "?";
+}
+
 IC float gauss_factor(float d, EAlifeEnemyType e, bool is_gauss) {
   if (!is_gauss)
     return 1.f;

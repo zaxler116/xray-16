@@ -23,6 +23,7 @@
 #include "ef_storage.h"
 
 // N.2: trade "need" core (see item_keep_count / item_is_keepable below)
+#include "ai_debug.h"
 #include "alife_weapon_score.h"
 #include "xrServer_Objects_ALife_Items.h"
 #include <cmath>
@@ -669,6 +670,9 @@ CSE_ALifeItemWeapon *CALifeHumanObjectHandler::best_weapon() {
   const bool has_ctx = has_combat_target();
   float l_fBestScore = -1.f;
   u32 l_dwBestWeapon = 0;
+  // W.5: remember the winner's factor breakdown for diagnostics
+  AlifeWeaponScore::SWeaponScore s_best;
+  bool bBestScored = false;
 
   float l_fDist = 0.f;
   int l_iCluster = 0;
@@ -699,9 +703,12 @@ CSE_ALifeItemWeapon *CALifeHumanObjectHandler::best_weapon() {
     if (!(w->m_dwAmmoAvailable || (!w->get_slot()) || (3 == w->get_slot())))
       continue;
 
-    float l_fScore;
     if (!has_ctx) {
-      l_fScore = float(w->ef_weapon_type());
+      u32 l_dwCurrentBestWeapon = w->ef_weapon_type();
+      if (l_dwCurrentBestWeapon > l_dwBestWeapon) {
+        l_dwBestWeapon = l_dwCurrentBestWeapon;
+        object.m_tpCurrentBestWeapon = w;
+      }
     } else {
       AlifeWeaponScore::SWeaponScore s;
       s.weapon_ef_type = w->ef_weapon_type();
@@ -725,22 +732,28 @@ CSE_ALifeItemWeapon *CALifeHumanObjectHandler::best_weapon() {
       s.enemy_dist = l_fDist;
       s.enemy = l_tEnemy;
       s.cluster_count = l_iCluster;
-      l_fScore = AlifeWeaponScore::compute(s);
-    }
-
-    if (has_ctx) {
+      const float l_fScore = AlifeWeaponScore::compute(s);
       if (l_fScore > l_fBestScore) {
         l_fBestScore = l_fScore;
         object.m_tpCurrentBestWeapon = w;
-      }
-    } else {
-      u32 l_dwCurrentBestWeapon = w->ef_weapon_type();
-      if (l_dwCurrentBestWeapon > l_dwBestWeapon) {
-        l_dwBestWeapon = l_dwCurrentBestWeapon;
-        object.m_tpCurrentBestWeapon = w;
+        s_best = s;
+        bBestScored = true;
       }
     }
   }
+
+#if defined(DEBUG) || defined(DEBUG_ALIFE)
+  if (has_ctx && bBestScored && ALIFE_LOG_ON && object.m_tpCurrentBestWeapon)
+    Msg("[LSS] %s weapon pick: %s score %5.2f (dist %4.1f, enemy %s, "
+        "cluster %d) [acc %4.2f cls %4.2f gl %4.2f clu %4.2f ammo %4.2f "
+        "sg %4.2f gz %4.2f ml %4.2f]",
+        object.base()->name_replace(),
+        object.m_tpCurrentBestWeapon->name_replace(), l_fBestScore, l_fDist,
+        AlifeWeaponScore::enemy_type_name(l_tEnemy), l_iCluster,
+        s_best.accuracy, s_best.cls, s_best.gl, s_best.cluster, s_best.ammo,
+        s_best.shotgun, s_best.gauss, s_best.melee);
+#endif
+
   return (object.m_tpCurrentBestWeapon);
 }
 

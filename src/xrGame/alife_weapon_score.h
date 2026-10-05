@@ -87,6 +87,9 @@ IC float melee_factor(float dist, u32 weapon_ef_type);
 // section-name test: true when the weapon section is the gauss.
 IC bool weapon_is_gauss(LPCSTR section);
 
+// short human-readable name of the enemy type (diagnostics).
+IC LPCSTR enemy_type_name(EAlifeEnemyType e);
+
 // --- ammo / switch factors ------------------------------------------
 
 IC float ammo_factor(u32 ammo_available, u16 ammo_limit);
