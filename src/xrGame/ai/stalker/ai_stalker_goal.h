@@ -94,8 +94,8 @@ public:
   IC u8 type() const { return (m_type); }
 
   // --- per-frame update (called from CAI_Stalker::Think) ------------------
-  void tick(CAI_Stalker *self);
-  void tick_kill_leave(CAI_Stalker *ai);
+  void tick(CAI_Stalker *self, CSE_ALifeHumanAbstract *human);
+  void tick_kill_leave(CAI_Stalker *ai, CSE_ALifeHumanAbstract *self);
   void leave_zone(CAI_Stalker *ai);
 
   // --- per-goal state queries (used by tick / debug) ---------------------

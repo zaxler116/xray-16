@@ -145,13 +145,13 @@ void CNpcLifeGoal::pick_random(CSE_ALifeHumanAbstract *self) {
 }
 
 // per-frame update (called from CAI_Stalker::Think)
-void CNpcLifeGoal::tick(CAI_Stalker *self) {
+void CNpcLifeGoal::tick(CAI_Stalker *self, CSE_ALifeHumanAbstract *human) {
   if (is_none())
     return;
 
   switch (type()) {
   case eGoalKillNpcAndLeave:
-    tick_kill_leave(self);
+    tick_kill_leave(self, human);
     break;
   default:
     // TODO: other goal types
@@ -160,14 +160,64 @@ void CNpcLifeGoal::tick(CAI_Stalker *self) {
 }
 
 // goal 1: find & kill a specific NPC, then leave the Zone
-void CNpcLifeGoal::tick_kill_leave(CAI_Stalker *ai) {
-  // TODO 3.1.2: check target alive/dead, killer_id, reassign, go_to
+void CNpcLifeGoal::tick_kill_leave(CAI_Stalker *stalker, CSE_ALifeHumanAbstract *self) {
+  if (!self)
+    return;
+
+  // get target
+  CSE_ALifeHumanAbstract *target = nullptr;
+  {
+    ALife::D_OBJECT_P_MAP::const_iterator I =
+        ai().alife().objects().objects().begin();
+    ALife::D_OBJECT_P_MAP::const_iterator E =
+        ai().alife().objects().objects().end();
+    for (; I != E; ++I) {
+      if (I->first == m_target_npc) {
+        target = smart_cast<CSE_ALifeHumanAbstract *>(I->second);
+        break;
+      }
+    }
+  }
+
+  if (!target) {
+    // target is gone (unregistered) -> reassign a new target
+    Msg("NPC [%s] goal: target is gone, reassigning", self->name());
+    m_target_killed = false;
+    pick_kill_leave(self);
+    return;
+  }
+
+  if (target->g_Alive()) {
+    // target is alive, navigate to it
+    Fvector target_pos = target->o_Position;
+    ALife::_OBJECT_ID target_game_vertex =
+        ALife::_OBJECT_ID(target->m_tGraphID);
+    go_to(stalker, target_game_vertex, ALife::_OBJECT_ID(0), target_pos);
+    return;
+  }
+
+  // target is dead - check who killed it
+  ALife::_OBJECT_ID killer = target->get_killer_id();
+  if (killer != ALife::_OBJECT_ID(0xffff) && killer != self->ID) {
+    // someone else killed the target -> reassign
+    Msg("NPC [%s] goal: target [%s] was killed by another, reassigning",
+        self->name(), target->name());
+    m_target_killed = false;
+    pick_kill_leave(self);
+    return;
+  }
+
+  // target was killed by us (or killer_id not set) -> leave the Zone
+  m_target_killed = true;
+  Msg("NPC [%s] goal: target [%s] is dead, leaving the Zone",
+      self->name(), target->name());
+  leave_zone(stalker);
 }
 
 // goal 1: navigate to nearest level changer, mark goal done on arrival
-void CNpcLifeGoal::leave_zone(CAI_Stalker *ai) {
+void CNpcLifeGoal::leave_zone(CAI_Stalker *stalker) {
   // TODO 3.1.3: find nearest CLevelChanger, go_to, mark done
-  (void)ai;
+  (void)stalker;
 }
 
 // save goal state to packet (for STATE_Write)

@@ -1076,7 +1076,7 @@ void CAI_Stalker::Think()
     CSE_ALifeDynamicObject *self_entity = ai().alife().objects().object(ID());
     CSE_ALifeHumanAbstract *human = smart_cast<CSE_ALifeHumanAbstract *>(self_entity);
     if (human && human->g_Alive())
-      human->goal().tick(this);
+      human->goal().tick(this, human);
 //		}
 #ifdef DEBUG
 //		catch (const luabind::cast_failed &message) {
