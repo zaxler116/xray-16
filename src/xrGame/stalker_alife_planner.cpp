@@ -18,7 +18,13 @@
 
 using namespace StalkerDecisionSpace;
 
-CStalkerALifePlanner::CStalkerALifePlanner(CAI_Stalker* object, LPCSTR action_name) : inherited(object, action_name) {}
+CStalkerALifePlanner::CStalkerALifePlanner(CAI_Stalker* object, LPCSTR action_name)
+    : inherited(object, action_name),
+      m_evaluator_squad_greeting(0),
+      m_evaluator_trade_with_trader(0),
+      m_evaluator_trade_with_squad(0)
+{
+}
 CStalkerALifePlanner::~CStalkerALifePlanner() {}
 void CStalkerALifePlanner::setup(CAI_Stalker* object, CPropertyStorage* storage)
 {
@@ -35,9 +41,12 @@ void CStalkerALifePlanner::add_evaluators()
     add_evaluator(
         eWorldPropertySmartTerrainTask, xr_new<CStalkerPropertyEvaluatorSmartTerrainTask>(m_object, "under smart terrain"));
     add_evaluator(eWorldPropertyALife, xr_new<CStalkerPropertyEvaluatorALife>(m_object, "ALife Simulator"));
-    add_evaluator(eWorldPropertySquadGreeting, xr_new<CStalkerPropertyEvaluatorSquadGreeting>(m_object, "squad greeting"));
-    add_evaluator(eWorldPropertyTradeWithTrader, xr_new<CStalkerPropertyEvaluatorTradeWithTrader>(m_object, "trade with trader"));
-    add_evaluator(eWorldPropertyTradeWithSquad, xr_new<CStalkerPropertyEvaluatorTradeWithSquad>(m_object, "trade with squad"));
+    m_evaluator_squad_greeting = xr_new<CStalkerPropertyEvaluatorSquadGreeting>(m_object, "squad greeting");
+    add_evaluator(eWorldPropertySquadGreeting, m_evaluator_squad_greeting);
+    m_evaluator_trade_with_trader = xr_new<CStalkerPropertyEvaluatorTradeWithTrader>(m_object, "trade with trader");
+    add_evaluator(eWorldPropertyTradeWithTrader, m_evaluator_trade_with_trader);
+    m_evaluator_trade_with_squad = xr_new<CStalkerPropertyEvaluatorTradeWithSquad>(m_object, "trade with squad");
+    add_evaluator(eWorldPropertyTradeWithSquad, m_evaluator_trade_with_squad);
 }
 
 void CStalkerALifePlanner::add_actions()
@@ -79,3 +88,4 @@ void CStalkerALifePlanner::add_actions()
     add_effect(action, eWorldPropertyPuzzleSolved, true);
     add_operator(eWorldOperatorSolveZonePuzzle, action);
 }
+

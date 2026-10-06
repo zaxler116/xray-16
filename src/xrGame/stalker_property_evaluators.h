@@ -286,6 +286,7 @@ public:
     CStalkerPropertyEvaluatorSquadGreeting(CAI_Stalker* object = 0, LPCSTR evaluator_name = "");
     virtual _value_type evaluate();
     const CEntity* greeting_target() const { return m_last_greeting_target; }
+    IC void set_last_greeting_time(u32 t) { m_last_greeting_time = t; }
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -306,6 +307,7 @@ public:
     CStalkerPropertyEvaluatorTradeWithTrader(CAI_Stalker* object = 0, LPCSTR evaluator_name = "");
     virtual _value_type evaluate();
     const CEntity* trader_target() const { return m_trader_target; }
+    IC void set_last_trade_time(u32 t) { m_last_trade_time = t; }
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -326,6 +328,7 @@ public:
     CStalkerPropertyEvaluatorTradeWithSquad(CAI_Stalker* object = 0, LPCSTR evaluator_name = "");
     virtual _value_type evaluate();
     const CEntity* squad_target() const { return m_squad_target; }
+    IC void set_last_trade_time(u32 t) { m_last_trade_time = t; }
 };
 
 //////////////////////////////////////////////////////////////////////////

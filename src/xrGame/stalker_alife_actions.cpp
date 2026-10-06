@@ -44,6 +44,7 @@
 #include "alife_switch_manager.h"
 #include "xrServer_Objects_ALife_Monsters.h"
 #include "ai_debug.h"
+#include "stalker_alife_planner.h"
 
 using namespace StalkerSpace;
 
@@ -61,13 +62,18 @@ using namespace StalkerSpace;
 
 CStalkerActionSquadGreeting::CStalkerActionSquadGreeting(CAI_Stalker* object, LPCSTR action_name)
     : inherited(object, action_name),
-      m_greeting_target(0), m_greeting_start_time(0), m_dialog_said(false), m_approach_distance_sqr(4.f * 4.f)
+      m_greeting_target(0), m_greeting_start_time(0), m_dialog_said(false), m_approach_distance_sqr(4.f * 4.f),
+      m_evaluator(0)
 {
 }
 
 void CStalkerActionSquadGreeting::initialize()
 {
     inherited::initialize();
+
+    // V5 - get the evaluator to stamp the greeting cooldown
+    CStalkerALifePlanner* alife_planner = smart_cast<CStalkerALifePlanner*>(&object().brain());
+    m_evaluator = alife_planner ? alife_planner->evaluator_squad_greeting() : 0;
 
     m_greeting_start_time = Device.dwTimeGlobal;
     m_dialog_said = false;
@@ -216,6 +222,9 @@ void CStalkerActionSquadGreeting::execute()
 
     if (now - m_greeting_start_time >= duration)
     {
+        // V5 - stamp the greeting cooldown
+        if (m_evaluator)
+            m_evaluator->set_last_greeting_time(Device.dwTimeGlobal);
 #if defined(DEBUG_ALIFE)
         if (ALIFE_LOG_ON)
             Msg("SQUADGREET-DONE: %s, target=%s, elapsed=%d", object().cName().c_str(), m_greeting_target->cName().c_str(), now - m_greeting_start_time);
@@ -235,13 +244,18 @@ CStalkerActionTradeWithTrader::CStalkerActionTradeWithTrader(CAI_Stalker* object
       m_trade_phase(eTradePhaseApproach), m_phase_start_time(0),
       m_current_item_go(0), m_animation_item_index(0), m_max_animation_items(5),
       m_hand_over_animation("zat_b14_give_artefact_act"), m_animation_duration_ms(3000),
-      m_phase_timeout_ms(60000)
+      m_phase_timeout_ms(60000),
+      m_evaluator(0)
 {
 }
 
 void CStalkerActionTradeWithTrader::initialize()
 {
     inherited::initialize();
+
+    // V5 - get the evaluator to stamp the trade cooldown
+    CStalkerALifePlanner* alife_planner = smart_cast<CStalkerALifePlanner*>(&object().brain());
+    m_evaluator = alife_planner ? alife_planner->evaluator_trade_with_trader() : 0;
 
     m_trade_time = 0;
     m_computed = false; // V4.1
@@ -780,6 +794,9 @@ void CStalkerActionTradeWithTrader::execute()
         // mirror the result back: ALife children -> client inventory
         mirror_alife_to_client();
         m_trade_phase = eTradePhaseDone;
+        // V5 - stamp the trade cooldown
+        if (m_evaluator)
+            m_evaluator->set_last_trade_time(Device.dwTimeGlobal);
 
 #if defined(DEBUG_ALIFE)
         if (ALIFE_LOG_ON)
@@ -843,13 +860,18 @@ CStalkerActionTradeWithSquad::CStalkerActionTradeWithSquad(CAI_Stalker* object, 
       m_trade_phase(eTradePhaseApproach), m_phase_start_time(0),
       m_current_item_go(0), m_animation_item_index(0), m_max_animation_items(5),
       m_hand_over_animation("zat_b14_give_artefact_act"), m_animation_duration_ms(3000),
-      m_phase_timeout_ms(60000)
+      m_phase_timeout_ms(60000),
+      m_evaluator(0)
 {
 }
 
 void CStalkerActionTradeWithSquad::initialize()
 {
     inherited::initialize();
+
+    // V5 - get the evaluator to stamp the trade cooldown
+    CStalkerALifePlanner* alife_planner = smart_cast<CStalkerALifePlanner*>(&object().brain());
+    m_evaluator = alife_planner ? alife_planner->evaluator_trade_with_squad() : 0;
 
     m_trade_time = 0;
     m_computed = false; // V4.1
@@ -1372,6 +1394,9 @@ void CStalkerActionTradeWithSquad::execute()
                 mirror_alife_to_client(partner_npc, m_alife_partner);
         }
         m_trade_phase = eTradePhaseDone;
+        // V5 - stamp the trade cooldown
+        if (m_evaluator)
+            m_evaluator->set_last_trade_time(Device.dwTimeGlobal);
 
 #if defined(DEBUG_ALIFE)
         if (ALIFE_LOG_ON)

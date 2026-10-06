@@ -9,6 +9,7 @@
 #pragma once
 
 #include "stalker_base_action.h"
+#include "stalker_property_evaluators.h"
 
 //////////////////////////////////////////////////////////////////////////
 // CStalkerActionGatherItems
@@ -39,6 +40,7 @@ protected:
     u32 m_greeting_start_time;
     bool m_dialog_said;
     float m_approach_distance_sqr;
+    CStalkerPropertyEvaluatorSquadGreeting* m_evaluator; // V5 - to stamp the greeting cooldown
 
 public:
     CStalkerActionSquadGreeting(CAI_Stalker* object, LPCSTR action_name = "");
@@ -76,6 +78,7 @@ protected:
     CSE_ALifeHumanAbstract* m_alife_human;
     CSE_ALifeTrader* m_alife_trader;
     u32 m_trade_time;
+    CStalkerPropertyEvaluatorTradeWithTrader* m_evaluator; // V5 - to stamp the trade cooldown
     float m_approach_distance_sqr;
     bool m_computed; // V4.1 - true after compute_trade/apply_trade, used for rollback in finalize()
 
@@ -154,6 +157,7 @@ protected:
     CSE_ALifeHumanAbstract* m_alife_human;
     CSE_ALifeHumanAbstract* m_alife_partner;
     u32 m_trade_time;
+    CStalkerPropertyEvaluatorTradeWithSquad* m_evaluator; // V5 - to stamp the trade cooldown
     float m_approach_distance_sqr;
     bool m_computed; // V4.1 - true after vfPerformTrading, used for rollback in finalize()
 
