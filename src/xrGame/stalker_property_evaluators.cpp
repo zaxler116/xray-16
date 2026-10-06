@@ -464,8 +464,15 @@ _value_type CStalkerPropertyEvaluatorTradeWithTrader::evaluate()
                 break;
             }
         }
-        if (!has_item)
+        if (!has_item) {
+#if defined(DEBUG_ALIFE)
+            if (ALIFE_LOG_ON)
+                Msg("*ALIFE V5: TradeWithSquad[%s] evaluate: no money, no "
+                    "sellable items (inv=%u)",
+                    m_object->cName().c_str(), count);
+#endif
             return (false);
+        }
     }
 
     const CVisualMemoryManager::RAW_VISIBLES& visibles = m_object->memory().visual().raw_objects();
@@ -510,12 +517,26 @@ CStalkerPropertyEvaluatorTradeWithSquad::CStalkerPropertyEvaluatorTradeWithSquad
 
 _value_type CStalkerPropertyEvaluatorTradeWithSquad::evaluate()
 {
-    if (!ai().get_alife())
+    if (!ai().get_alife()) {
+#if defined(DEBUG_ALIFE)
+        if (ALIFE_LOG_ON)
+            Msg("*ALIFE V5: TradeWithSquad[%s] evaluate: no ALife",
+                m_object->cName().c_str());
+#endif
         return (false);
+    }
 
     // cooldown: one squad-to-squad trade per 5 minutes per NPC
-    if (Device.dwTimeGlobal < m_last_trade_time + 300000)
+    if (Device.dwTimeGlobal < m_last_trade_time + 300000) {
+#if defined(DEBUG_ALIFE)
+        if (ALIFE_LOG_ON)
+            Msg("*ALIFE V5: TradeWithSquad[%s] evaluate: in cooldown (last=%u "
+                "now=%u)",
+                m_object->cName().c_str(), (unsigned)m_last_trade_time,
+                (unsigned)Device.dwTimeGlobal);
+#endif
         return (false);
+    }
 
     // there must be something to trade: money or at least one sellable item
     if (m_object->get_money() <= 0)
@@ -580,6 +601,21 @@ _value_type CStalkerPropertyEvaluatorTradeWithSquad::evaluate()
     }
 
     m_squad_target = best;
+
+#if defined(DEBUG_ALIFE)
+    if (ALIFE_LOG_ON) {
+        if (best)
+            Msg("*ALIFE V5: TradeWithSquad[%s] evaluate: TRUE, partner=%s "
+                "dist2=%.1f",
+                m_object->cName().c_str(), best->cName().c_str(),
+                (double)best_distance_sqr);
+        else
+            Msg("*ALIFE V5: TradeWithSquad[%s] evaluate: FALSE, no suitable "
+                "partner in %d visibles (radius 30m)",
+                m_object->cName().c_str(), (int)visibles.size());
+    }
+#endif
+
     return (best != 0);
 }
 
