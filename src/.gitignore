@@ -4,3 +4,4 @@ xrCore/.GitInfo.hpp
 packages/
 _ReSharper.Caches/
 *.log
+*nul

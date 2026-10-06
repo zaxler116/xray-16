@@ -4,98 +4,11 @@
 //	Description : "Life goal" of a human NPC (stalker, not a monster)
 ////////////////////////////////////////////////////////////////////////////
 
+#include "ai_stalker_goal.h"
 #include "StdAfx.h"
 #include "ai_stalker.h"
-#include "alife_space.h"
-#include "character_info_defs.h"
 #include "xrServerEntities/xrServer_Objects_ALife_Monsters.h"
 
-// NOTE: enum and class are defined inline here (not in a separate header)
-// to work around an unresolved MSBuild issue where ai_stalker_goal.h
-// contents were not visible to the compiler.
-
-class CAI_Stalker;
-class CSE_ALifeHumanAbstract;
-class IReader;
-class IWriter;
-struct HLOG;
-class shared_str;
-
-enum ENpcLifeGoal : u8 {
-  eGoalKillNpcAndLeave = 0,
-  eGoalEarnMoney = 1,
-  eGoalExploreZone = 2,
-  eGoalCollectArtefacts = 3,
-  eGoalJoinFaction = 4,
-  eGoalSquadExplore = 5,
-  eGoalCount
-};
-
-// returns a short printable name for logs / debug / console
-LPCSTR npc_life_goal_name(u8 goal_type);
-
-class CNpcLifeGoal {
-private:
-  u8 m_type; // eGoalCount == "no goal yet"
-
-  // eGoalKillNpcAndLeave
-  ALife::_OBJECT_ID m_target_npc; // who to hunt
-  bool m_target_killed;
-
-  // eGoalEarnMoney
-  u32 m_money_target;   // absolute money amount to hold
-  u32 m_money_at_spawn; // capital at spawn (for "earned" reports)
-
-  // eGoalJoinFaction
-  s32 m_target_faction; // CHARACTER_COMMUNITY_INDEX
-
-  // eGoalSquadExplore
-  u32 m_squad_target; // desired squad size
-
-  // current sub-goal destination (avoid re-picking every frame)
-  ALife::_OBJECT_ID m_current_dest; // level vertex id of current destination
-  Fvector m_current_dest_pos;       // world position of current destination
-
-public:
-  CNpcLifeGoal();
-
-  // --- selection ---------------------------------------------------------
-  // pick one random goal (weights from [life_goal]) and initialise its fields.
-  // Must be called exactly once, on first entity creation.
-  void pick_random(CSE_ALifeHumanAbstract *self);
-  // force a goal type (console command / debugging); initialises fields too
-  void force_type(CSE_ALifeHumanAbstract *self, u8 type);
-
-  IC bool is_none() const { return (m_type == eGoalCount); }
-  IC u8 type() const { return (m_type); }
-
-  // --- per-frame update (called from CAI_Stalker::Think) ------------------
-  void tick(CAI_Stalker *self);
-
-  // --- per-goal state queries (used by tick / debug) ---------------------
-  IC ALife::_OBJECT_ID target_npc() const { return (m_target_npc); }
-  IC u32 money_target() const { return (m_money_target); }
-  IC u32 squad_target() const { return (m_squad_target); }
-  IC s32 target_faction() const { return (m_target_faction); }
-
-  // --- serialization (survives level transitions + savegames) ------------
-  void save(IWriter &F) const;
-  void load(IReader &F);
-
-  // --- debug -------------------------------------------------------------
-  void debug_info(CSE_ALifeHumanAbstract *self, HLOG &log) const;
-
-  // --- helpers (implemented in ai_stalker_goal.cpp) ----------------------
-  // navigate the stalker to a vertex/position (mirrors
-  // CStalkerActionSmartTerrain)
-  void go_to(CAI_Stalker *ai, ALife::_OBJECT_ID game_vertex,
-             ALife::_OBJECT_ID level_vertex, const Fvector &position);
-  void set_destination(ALife::_OBJECT_ID level_vertex, const Fvector &position);
-  IC bool at_destination(CAI_Stalker *ai, float radius) const;
-
-  // switch to the "wander afterwards" behaviour (goal 2,3,4,5 completion)
-  void complete_to_wander();
-};
 
 LPCSTR npc_life_goal_name(u8 goal_type) {
   switch (goal_type) {

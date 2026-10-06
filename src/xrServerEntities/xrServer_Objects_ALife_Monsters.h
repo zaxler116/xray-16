@@ -10,6 +10,7 @@
 #ifndef xrServer_Objects_ALife_MonstersH
 #define xrServer_Objects_ALife_MonstersH
 
+#include "../xrGame/ai/stalker/ai_stalker_goal.h"
 #include "alife_movement_manager_holder.h"
 #include "character_info_defs.h"
 #include "xrCommon/misc_math_types.h"
@@ -657,6 +658,10 @@ public:
   }
   virtual CALifeMonsterBrain *create_brain();
 
+  // --- NPC life goal (picks one random goal on spawn) --------------------
+  IC CNpcLifeGoal &goal() { return (m_goal); }
+  IC const CNpcLifeGoal &goal() const { return (m_goal); }
+
 #ifdef XRGAME_EXPORTS
   virtual void update();
   virtual CSE_ALifeItemWeapon *tpfGetBestWeapon(ALife::EHitType &tHitType,
@@ -680,6 +685,7 @@ public:
 
 private:
   CALifeHumanBrain *m_brain;
+  CNpcLifeGoal m_goal; // NPC life goal (picks one on spawn)
 
 public:
   virtual void UPDATE_Read(NET_Packet &P);
