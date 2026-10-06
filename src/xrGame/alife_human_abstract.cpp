@@ -97,6 +97,7 @@ void CSE_ALifeHumanAbstract::on_register()
     inherited2::on_register();
     // because we need to load profile to setup graph vertex masks
     specific_character();
+    goal().pick_random(this);
 }
 
 void CSE_ALifeHumanAbstract::on_unregister() { inherited2::on_unregister(); }

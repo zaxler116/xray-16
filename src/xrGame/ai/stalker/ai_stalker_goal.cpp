@@ -77,7 +77,74 @@ void CNpcLifeGoal::pick_kill_leave(CSE_ALifeHumanAbstract *self) {
   Msg("NPC [%s] goal: kill [%s] and leave", self->name(), target_name);
 }
 
-// TODO: pick_random / force_type / tick / artefact_collected / save / load /
+// pick one random goal (weights from [life_goal] in system.ltx)
+void CNpcLifeGoal::pick_random(CSE_ALifeHumanAbstract *self) {
+  if (!is_none())
+    return;
+
+  // read [life_goal] section from system.ltx (pSettings)
+  u32 weights[eGoalCount];
+  u32 total_weight = 0;
+  for (u8 i = 0; i < eGoalCount; ++i)
+    weights[i] = 0;
+
+  if (pSettings && pSettings->section_exist("life_goal")) {
+    u32 count = pSettings->line_count("life_goal");
+    for (u32 i = 0; i < count; ++i) {
+      LPCSTR name, value;
+      if (!pSettings->r_line("life_goal", i, &name, &value))
+        continue;
+      // parse "goal_name=weight"
+      u32 w = (u32)atol(value);
+      for (u8 g = 0; g < eGoalCount; ++g) {
+        if (xr_stricmp(name, npc_life_goal_name(g)) == 0) {
+          weights[g] = w;
+          total_weight += w;
+          break;
+        }
+      }
+    }
+  }
+
+  // fallback: only goal 1 if no config or zero weights
+  if (total_weight == 0) {
+    weights[eGoalKillNpcAndLeave] = 1;
+    total_weight = 1;
+  }
+
+  // weighted random pick
+  u32 roll = ::Random32.random(total_weight);
+  u32 acc = 0;
+  u8 chosen = eGoalKillNpcAndLeave;
+  for (u8 i = 0; i < eGoalCount; ++i) {
+    acc += weights[i];
+    if (roll < acc) {
+      chosen = i;
+      break;
+    }
+  }
+
+  switch (chosen) {
+  case eGoalKillNpcAndLeave:
+    pick_kill_leave(self);
+    break;
+  case eGoalEarnMoney:
+  case eGoalExploreZone:
+  case eGoalCollectArtefacts:
+  case eGoalJoinFaction:
+  case eGoalSquadExplore:
+    // TODO: implement other goals; fallback to kill for now
+    Msg("NPC [%s] goal %s not implemented yet, fallback to kill", self->name(),
+        npc_life_goal_name(chosen));
+    pick_kill_leave(self);
+    break;
+  default:
+    m_type = eGoalCount;
+    break;
+  }
+}
+
+// TODO: force_type / tick / artefact_collected / save / load /
 //       debug_info / complete_to_wander
 
 ///////////////////////////////////////////////////////////////////////////////
