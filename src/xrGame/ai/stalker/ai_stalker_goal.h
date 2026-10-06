@@ -105,6 +105,8 @@ public:
   // --- serialization (survives level transitions + savegames) ------------
   void save(IWriter &F) const;
   void load(IReader &F);
+  void save_net(NET_Packet &P) const;
+  void load_net(NET_Packet &P);
 
   // --- debug -------------------------------------------------------------
   void debug_info(CSE_ALifeHumanAbstract *self, HLOG &log) const;

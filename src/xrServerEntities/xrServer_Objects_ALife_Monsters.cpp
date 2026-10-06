@@ -1857,6 +1857,7 @@ void CSE_ALifeHumanAbstract::STATE_Write(NET_Packet &tNetPacket) {
   inherited1::STATE_Write(tNetPacket);
   inherited2::STATE_Write(tNetPacket);
   brain().on_state_write(tNetPacket);
+  m_goal.save_net(tNetPacket);
 }
 
 void CSE_ALifeHumanAbstract::STATE_Read(NET_Packet &tNetPacket, u16 size) {
@@ -1865,6 +1866,7 @@ void CSE_ALifeHumanAbstract::STATE_Read(NET_Packet &tNetPacket, u16 size) {
   brain().on_state_read(tNetPacket);
   if ((m_wVersion >= 110) && (m_wVersion < 112))
     tNetPacket.r(&m_smart_terrain_id, sizeof(m_smart_terrain_id));
+  m_goal.load_net(tNetPacket);
 }
 
 void CSE_ALifeHumanAbstract::UPDATE_Write(NET_Packet &tNetPacket) {

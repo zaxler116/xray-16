@@ -175,6 +175,32 @@ void CNpcLifeGoal::tick(CAI_Stalker *self) {
   // TODO: other goal types
 }
 
+// save goal state to packet (for STATE_Write)
+void CNpcLifeGoal::save_net(NET_Packet &P) const {
+  P.w(&m_type, sizeof(m_type));
+  P.w(&m_target_npc, sizeof(m_target_npc));
+  P.w(&m_target_killed, sizeof(m_target_killed));
+  P.w(&m_money_target, sizeof(m_money_target));
+  P.w(&m_money_at_spawn, sizeof(m_money_at_spawn));
+  P.w(&m_target_faction, sizeof(m_target_faction));
+  P.w(&m_squad_target, sizeof(m_squad_target));
+  P.w(&m_current_dest, sizeof(m_current_dest));
+  P.w(&m_current_dest_pos, sizeof(m_current_dest_pos));
+}
+
+// load goal state from packet (for STATE_Read)
+void CNpcLifeGoal::load_net(NET_Packet &P) {
+  P.r(&m_type, sizeof(m_type));
+  P.r(&m_target_npc, sizeof(m_target_npc));
+  P.r(&m_target_killed, sizeof(m_target_killed));
+  P.r(&m_money_target, sizeof(m_money_target));
+  P.r(&m_money_at_spawn, sizeof(m_money_at_spawn));
+  P.r(&m_target_faction, sizeof(m_target_faction));
+  P.r(&m_squad_target, sizeof(m_squad_target));
+  P.r(&m_current_dest, sizeof(m_current_dest));
+  P.r(&m_current_dest_pos, sizeof(m_current_dest_pos));
+}
+
 // TODO: force_type / artefact_collected / save / load /
 //       debug_info / complete_to_wander
 
