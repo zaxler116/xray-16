@@ -532,6 +532,9 @@ bool CAI_Stalker::net_Spawn(CSE_Abstract* DC)
 
     set_money(tpHuman->m_dwMoney, false);
 
+    if (tpHuman->goal().is_none())
+        tpHuman->goal().pick_kill_leave(tpHuman);
+
     animation().reload();
 
     movement().m_head.current.yaw = movement().m_head.target.yaw = movement().m_body.current.yaw =

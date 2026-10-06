@@ -7,8 +7,8 @@
 #include "ai_stalker_goal.h"
 #include "StdAfx.h"
 #include "ai_stalker.h"
+#include "alife_object_registry.h"
 #include "xrServerEntities/xrServer_Objects_ALife_Monsters.h"
-
 
 LPCSTR npc_life_goal_name(u8 goal_type) {
   switch (goal_type) {
@@ -34,6 +34,48 @@ CNpcLifeGoal::CNpcLifeGoal()
       m_target_killed(false), m_money_target(0), m_money_at_spawn(0),
       m_target_faction(NO_COMMUNITY_INDEX), m_squad_target(0),
       m_current_dest(ALife::_OBJECT_ID(0xffff)), m_current_dest_pos() {}
+
+// goal 1: pick a random hostile NPC to hunt down, then leave the Zone
+void CNpcLifeGoal::pick_kill_leave(CSE_ALifeHumanAbstract *self) {
+  // collect candidates
+  ALife::_OBJECT_ID candidates[64];
+  u32 count = 0;
+
+  ALife::D_OBJECT_P_MAP::const_iterator I =
+      ai().alife().objects().objects().begin();
+  ALife::D_OBJECT_P_MAP::const_iterator E =
+      ai().alife().objects().objects().end();
+  for (; I != E; ++I) {
+    CSE_ALifeHumanAbstract *h = smart_cast<CSE_ALifeHumanAbstract *>(I->second);
+    if (!h)
+      continue;
+    if (h->ID == self->ID)
+      continue; // not self
+    if (!h->g_Alive())
+      continue; // alive only
+    if (h->Community() == self->Community())
+      continue; // not own faction
+    if (count < 64)
+      candidates[count++] = I->first;
+  }
+
+  if (count == 0) {
+    m_type = eGoalCount;
+    Msg("NPC [%s] has no valid kill targets", self->name());
+    return;
+  }
+
+  m_target_npc = candidates[::Random32.random(count)];
+  m_target_killed = false;
+  m_type = eGoalKillNpcAndLeave;
+
+  // log
+  CSE_ALifeDynamicObject *target = ai().alife().objects().object(m_target_npc);
+  CSE_ALifeHumanAbstract *target_h =
+      target ? smart_cast<CSE_ALifeHumanAbstract *>(target) : nullptr;
+  LPCSTR target_name = target_h ? target_h->name() : "unknown";
+  Msg("NPC [%s] goal: kill [%s] and leave", self->name(), target_name);
+}
 
 // TODO: pick_random / force_type / tick / artefact_collected / save / load /
 //       debug_info / complete_to_wander

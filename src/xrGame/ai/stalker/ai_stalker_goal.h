@@ -87,6 +87,8 @@ public:
   void pick_random(CSE_ALifeHumanAbstract *self);
   // force a goal type (console command / debugging); initialises fields too
   void force_type(CSE_ALifeHumanAbstract *self, u8 type);
+  // goal 1: pick a random hostile NPC to hunt down, then leave the Zone
+  void pick_kill_leave(CSE_ALifeHumanAbstract *self);
 
   IC bool is_none() const { return (m_type == eGoalCount); }
   IC u8 type() const { return (m_type); }
