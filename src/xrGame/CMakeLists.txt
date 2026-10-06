@@ -2067,6 +2067,8 @@ target_sources(xrGame PRIVATE
     ai/stalker/ai_stalker_events.cpp
     ai/stalker/ai_stalker_feel.cpp
     ai/stalker/ai_stalker_fire.cpp
+    ai/stalker/ai_stalker_goal.cpp
+    ai/stalker/ai_stalker_goal.h
     ai/stalker/ai_stalker.h
     ai/stalker/ai_stalker_impl.h
     ai/stalker/ai_stalker_inline.h

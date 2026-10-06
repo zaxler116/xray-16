@@ -498,6 +498,7 @@
     <ClInclude Include="ai\Monsters\Zombie\zombie_state_manager.h" />
     <ClInclude Include="ai\phantom\phantom.h" />
     <ClInclude Include="ai\position_prediction.h" />
+    <ClInclude Include="Ai\Stalker\ai_stalker_goal.h" />
     <ClInclude Include="Ai\Stalker\ai_stalker.h" />
     <ClInclude Include="ai\stalker\ai_stalker_impl.h" />
     <ClInclude Include="ai\stalker\ai_stalker_inline.h" />
@@ -1862,6 +1863,7 @@
       <PrecompiledHeaderFile>pch_script.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)$(ProjectName)_script.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
+    <ClCompile Include="Ai\Stalker\ai_stalker_goal.cpp" />
     <ClCompile Include="Ai\Stalker\ai_stalker_misc.cpp">
       <PrecompiledHeaderFile>pch_script.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)$(ProjectName)_script.pch</PrecompiledHeaderOutputFile>
