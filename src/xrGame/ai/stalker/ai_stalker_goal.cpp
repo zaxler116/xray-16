@@ -9,6 +9,9 @@
 #include "ai_stalker.h"
 #include "alife_object_registry.h"
 #include "xrServerEntities/xrServer_Objects_ALife_Monsters.h"
+#include "level_changer.h"
+
+extern xr_vector<CLevelChanger*> g_lchangers;
 
 LPCSTR npc_life_goal_name(u8 goal_type) {
   switch (goal_type) {
@@ -216,8 +219,43 @@ void CNpcLifeGoal::tick_kill_leave(CAI_Stalker *stalker, CSE_ALifeHumanAbstract 
 
 // goal 1: navigate to nearest level changer, mark goal done on arrival
 void CNpcLifeGoal::leave_zone(CAI_Stalker *stalker) {
-  // TODO 3.1.3: find nearest CLevelChanger, go_to, mark done
-  (void)stalker;
+  // find nearest enabled level changer
+  CLevelChanger *best = nullptr;
+  float best_dist = 1e9f;
+  for (xr_vector<CLevelChanger *>::iterator I = g_lchangers.begin();
+       I != g_lchangers.end(); ++I) {
+    CLevelChanger *lc = *I;
+    if (!lc || !lc->IsLevelChangerEnabled())
+      continue;
+    float d = stalker->Position().distance_to_sqr(lc->Position());
+    if (d < best_dist) {
+      best_dist = d;
+      best = lc;
+    }
+  }
+
+  if (!best) {
+    // no level changer on this level -> switch to wander
+    Msg("NPC [%s] goal: no level changer found, switching to wander",
+        stalker->cName().c_str());
+    m_type = eGoalExploreZone;
+    return;
+  }
+
+  // navigate to the level changer
+  go_to(stalker, ALife::_OBJECT_ID(0), ALife::_OBJECT_ID(0),
+        best->Position());
+
+  // arrived? (within 2m)
+  if (stalker->Position().distance_to(best->Position()) < 2.0f) {
+    m_target_killed = true;
+    m_type = eGoalCount;
+    // NOTE: full NPC teleport is not implemented (no server-side
+    // M_CHANGE_LEVEL for NPCs). The NPC stays on the level and
+    // simply stops pursuing this goal.
+    Msg("NPC [%s] goal: reached level changer, goal complete (teleport not implemented)",
+        stalker->cName().c_str());
+  }
 }
 
 // save goal state to packet (for STATE_Write)
