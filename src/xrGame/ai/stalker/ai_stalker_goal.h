@@ -95,6 +95,8 @@ public:
 
   // --- per-frame update (called from CAI_Stalker::Think) ------------------
   void tick(CAI_Stalker *self);
+  void tick_kill_leave(CAI_Stalker *ai);
+  void leave_zone(CAI_Stalker *ai);
 
   // --- per-goal state queries (used by tick / debug) ---------------------
   IC ALife::_OBJECT_ID target_npc() const { return (m_target_npc); }

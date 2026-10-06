@@ -149,30 +149,25 @@ void CNpcLifeGoal::tick(CAI_Stalker *self) {
   if (is_none())
     return;
 
-  if (type() == eGoalKillNpcAndLeave && !m_target_killed) {
-    // check if target is still alive
-    CSE_ALifeDynamicObject *target =
-        ai().alife().objects().object(m_target_npc);
-    CSE_ALifeHumanAbstract *target_h =
-        target ? smart_cast<CSE_ALifeHumanAbstract *>(target) : nullptr;
-
-    if (!target_h || !target_h->g_Alive()) {
-      // target is dead or gone
-      m_target_killed = true;
-      LPCSTR target_name = target_h ? target_h->name() : "unknown";
-      Msg("NPC [%s] goal: target [%s] is dead, leaving the Zone",
-          self->cName(), target_name);
-      // TODO: phase 2 - navigate to exit and leave the Zone
-    } else {
-      // target is alive, navigate to it
-      Fvector target_pos = target_h->position();
-      ALife::_OBJECT_ID target_game_vertex =
-          ALife::_OBJECT_ID(target_h->m_tGraphID);
-      // use level_vertex = 0 for now (will be refined in phase 2)
-      go_to(self, target_game_vertex, ALife::_OBJECT_ID(0), target_pos);
-    }
+  switch (type()) {
+  case eGoalKillNpcAndLeave:
+    tick_kill_leave(self);
+    break;
+  default:
+    // TODO: other goal types
+    break;
   }
-  // TODO: other goal types
+}
+
+// goal 1: find & kill a specific NPC, then leave the Zone
+void CNpcLifeGoal::tick_kill_leave(CAI_Stalker *ai) {
+  // TODO 3.1.2: check target alive/dead, killer_id, reassign, go_to
+}
+
+// goal 1: navigate to nearest level changer, mark goal done on arrival
+void CNpcLifeGoal::leave_zone(CAI_Stalker *ai) {
+  // TODO 3.1.3: find nearest CLevelChanger, go_to, mark done
+  (void)ai;
 }
 
 // save goal state to packet (for STATE_Write)
