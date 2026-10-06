@@ -144,7 +144,38 @@ void CNpcLifeGoal::pick_random(CSE_ALifeHumanAbstract *self) {
   }
 }
 
-// TODO: force_type / tick / artefact_collected / save / load /
+// per-frame update (called from CAI_Stalker::Think)
+void CNpcLifeGoal::tick(CAI_Stalker *self) {
+  if (is_none())
+    return;
+
+  if (type() == eGoalKillNpcAndLeave && !m_target_killed) {
+    // check if target is still alive
+    CSE_ALifeDynamicObject *target =
+        ai().alife().objects().object(m_target_npc);
+    CSE_ALifeHumanAbstract *target_h =
+        target ? smart_cast<CSE_ALifeHumanAbstract *>(target) : nullptr;
+
+    if (!target_h || !target_h->g_Alive()) {
+      // target is dead or gone
+      m_target_killed = true;
+      LPCSTR target_name = target_h ? target_h->name() : "unknown";
+      Msg("NPC [%s] goal: target [%s] is dead, leaving the Zone",
+          self->cName(), target_name);
+      // TODO: phase 2 - navigate to exit and leave the Zone
+    } else {
+      // target is alive, navigate to it
+      Fvector target_pos = target_h->position();
+      ALife::_OBJECT_ID target_game_vertex =
+          ALife::_OBJECT_ID(target_h->m_tGraphID);
+      // use level_vertex = 0 for now (will be refined in phase 2)
+      go_to(self, target_game_vertex, ALife::_OBJECT_ID(0), target_pos);
+    }
+  }
+  // TODO: other goal types
+}
+
+// TODO: force_type / artefact_collected / save / load /
 //       debug_info / complete_to_wander
 
 ///////////////////////////////////////////////////////////////////////////////

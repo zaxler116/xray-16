@@ -25,6 +25,7 @@
 #include "xrEngine/xr_level_controller.h"
 #include "Include/xrRender/Kinematics.h"
 #include "xrServerEntities/character_info.h"
+#include "alife_object_registry.h"
 #include "Actor.h"
 #include "relation_registry.h"
 #include "stalker_animation_manager.h"
@@ -1070,6 +1071,12 @@ void CAI_Stalker::Think()
     //	try {
     //		try {
     brain().update(update_delta);
+
+    // NPC life goal tick
+    CSE_ALifeDynamicObject *self_entity = ai().alife().objects().object(ID());
+    CSE_ALifeHumanAbstract *human = smart_cast<CSE_ALifeHumanAbstract *>(self_entity);
+    if (human && human->g_Alive())
+      human->goal().tick(this);
 //		}
 #ifdef DEBUG
 //		catch (const luabind::cast_failed &message) {
