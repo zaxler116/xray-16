@@ -76,6 +76,10 @@ void CStalkerActionSquadGreeting::initialize()
     m_greeting_target = 0;
     float best_dist_sqr = 100.f * 100.f;
     const CVisualMemoryManager::RAW_VISIBLES& visibles = object().memory().visual().raw_objects();
+#if defined(DEBUG_ALIFE)
+    if (ALIFE_LOG_ON)
+        Msg("SQUADGREET-INIT: %s, visibles=%d", object().cName().c_str(), (int)visibles.size());
+#endif
     for (CVisualMemoryManager::RAW_VISIBLES::const_iterator i = visibles.begin(); i != visibles.end(); ++i)
     {
         const CEntity* e = smart_cast<const CEntity*>(*i);
@@ -83,7 +87,7 @@ void CStalkerActionSquadGreeting::initialize()
             continue;
         if (e->ID() == object().ID())
             continue;
-        if (e->g_Squad() == object().g_Squad())
+        if (e->g_Team() == object().g_Team() && e->g_Squad() == object().g_Squad())
             continue;
         if (!smart_cast<const CAI_Stalker*>(e))
             continue;
@@ -101,6 +105,10 @@ void CStalkerActionSquadGreeting::initialize()
 
     if (!m_greeting_target)
     {
+#if defined(DEBUG_ALIFE)
+        if (ALIFE_LOG_ON)
+            Msg("SQUADGREET-INIT: %s - no target in visibles, stand", object().cName().c_str());
+#endif
         // no target - just stand
         object().movement().set_desired_position(0);
         object().movement().set_desired_direction(0);
@@ -110,6 +118,11 @@ void CStalkerActionSquadGreeting::initialize()
         object().sight().setup(CSightAction(SightManager::eSightTypeCurrentDirection));
         return;
     }
+
+#if defined(DEBUG_ALIFE)
+    if (ALIFE_LOG_ON)
+        Msg("SQUADGREET-INIT: %s - target=%s dist_sqr=%f", object().cName().c_str(), m_greeting_target->cName().c_str(), best_dist_sqr);
+#endif
 
     // face and stand toward the target
     object().movement().set_desired_position(0);
@@ -163,6 +176,10 @@ void CStalkerActionSquadGreeting::execute()
     float dist_sqr = object().Position().distance_to_sqr(m_greeting_target->Position());
     if (dist_sqr > m_approach_distance_sqr)
     {
+#if defined(DEBUG_ALIFE)
+        if (ALIFE_LOG_ON)
+            Msg("SQUADGREET-APPROACH: %s -> %s, dist_sqr=%f (limit=%f)", object().cName().c_str(), m_greeting_target->cName().c_str(), dist_sqr, m_approach_distance_sqr);
+#endif
         object().movement().set_movement_type(eMovementTypeWalk);
         object().movement().set_body_state(eBodyStateStand);
         object().movement().set_path_type(MovementManager::ePathTypeGamePath);
@@ -198,7 +215,13 @@ void CStalkerActionSquadGreeting::execute()
     }
 
     if (now - m_greeting_start_time >= duration)
+    {
+#if defined(DEBUG_ALIFE)
+        if (ALIFE_LOG_ON)
+            Msg("SQUADGREET-DONE: %s, target=%s, elapsed=%d", object().cName().c_str(), m_greeting_target->cName().c_str(), now - m_greeting_start_time);
+#endif
         m_greeting_target = 0; // done, planner will stop us next tick
+    }
 }
 
 //////////////////////////////////////////////////////////////////////////

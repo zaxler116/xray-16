@@ -347,11 +347,26 @@ CStalkerPropertyEvaluatorSquadGreeting::CStalkerPropertyEvaluatorSquadGreeting(
 _value_type CStalkerPropertyEvaluatorSquadGreeting::evaluate()
 {
     if (!ai().get_alife())
+    {
+#if defined(DEBUG_ALIFE)
+        if (ALIFE_LOG_ON)
+            Msg("*ALIFE V5: SquadGreeting[%s] evaluate: no alife object",
+                m_object->cName().c_str());
+#endif
         return (false);
+    }
 
     // cooldown: no new greeting while one is in progress or right after one
     if (Device.dwTimeGlobal < m_last_greeting_time + 60000)
+    {
+#if defined(DEBUG_ALIFE)
+        if (ALIFE_LOG_ON)
+            Msg("*ALIFE V5: SquadGreeting[%s] evaluate: in cooldown (last=%u now=%u)",
+                m_object->cName().c_str(), (unsigned)m_last_greeting_time,
+                (unsigned)Device.dwTimeGlobal);
+#endif
         return (false);
+    }
 
     const CVisualMemoryManager::RAW_VISIBLES& visibles = m_object->memory().visual().raw_objects();
     const CEntity* best = 0;
@@ -364,7 +379,7 @@ _value_type CStalkerPropertyEvaluatorSquadGreeting::evaluate()
             continue;
         if (e->ID() == m_object->ID())
             continue;
-        if (e->g_Squad() == m_object->g_Squad())
+        if (e->g_Team() == m_object->g_Team() && e->g_Squad() == m_object->g_Squad())
             continue; // own squad members never greet
         const CAI_Stalker* other_stalker = smart_cast<const CAI_Stalker*>(e);
         if (!other_stalker)
@@ -388,6 +403,20 @@ _value_type CStalkerPropertyEvaluatorSquadGreeting::evaluate()
     }
 
     m_last_greeting_target = best;
+
+#if defined(DEBUG_ALIFE)
+    if (ALIFE_LOG_ON)
+    {
+        if (best)
+            Msg("*ALIFE V5: SquadGreeting[%s] evaluate: TRUE, target=%s dist2=%.1f",
+                m_object->cName().c_str(), best->cName().c_str(),
+                (double)best_distance_sqr);
+        else
+            Msg("*ALIFE V5: SquadGreeting[%s] evaluate: FALSE, no target in %d visibles",
+                m_object->cName().c_str(), (int)visibles.size());
+    }
+#endif
+
     return (best != 0);
 }
 
