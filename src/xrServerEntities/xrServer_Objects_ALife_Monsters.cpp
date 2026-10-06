@@ -12,7 +12,6 @@
 #include "alife_human_brain.h"
 #include "xrServer_Objects_ALife_Items.h"
 
-
 #ifndef AI_COMPILER
 #include "ai_space.h"
 #include "character_info.h"
@@ -278,7 +277,6 @@ void CSE_ALifeTraderAbstract::OnChangeProfile(PropValue *sender) {
 
 #include "Level.h"
 #include "game_base_space.h"
-
 
 #endif
 
@@ -1900,7 +1898,6 @@ void CSE_ALifeHumanAbstract::FillProps(LPCSTR pref, PropItemVec &items) {
 //////////////////////////////////////////////////////////////////////////
 CSE_ALifeHumanStalker::CSE_ALifeHumanStalker(LPCSTR caSection)
     : CSE_ALifeHumanAbstract(caSection), CSE_PHSkeleton(caSection) {
-  m_trader_flags.set(eTraderFlagInfiniteAmmo, true);
   m_start_dialog = "";
 }
 
